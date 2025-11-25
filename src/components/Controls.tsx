@@ -17,7 +17,8 @@ interface ControlsProps {
   visible: boolean;
 }
 
-export const Controls: React.FC<ControlsProps> = ({ 
+// Componente interno (lógica dos botões)
+const ControlsComponent: React.FC<ControlsProps> = ({ 
     onUndo, 
     onReset, 
     onSwap, 
@@ -130,3 +131,6 @@ export const Controls: React.FC<ControlsProps> = ({
     </motion.div>
   );
 };
+
+// Exportar memoizado para evitar re-renders desnecessários
+export const Controls = React.memo(ControlsComponent);

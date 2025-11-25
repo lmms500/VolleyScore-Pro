@@ -27,7 +27,7 @@ interface ScoreCardProps {
   className?: string;
 }
 
-export const ScoreCard: React.FC<ScoreCardProps> = ({
+const ScoreCardComponent: React.FC<ScoreCardProps> = ({
   teamId, teamName, score, opponentScore, setsWon, maxSets, setsToWinMatch,
   isWinner, inSuddenDeath, isServing, timeoutsUsed,
   onAdd, onSubtract, onToggleService, onUseTimeout,
@@ -132,13 +132,12 @@ export const ScoreCard: React.FC<ScoreCardProps> = ({
         onTap={() => { if (!isDragging.current) { triggerHaptic(); onAdd(); } }}
         whileTap={{ scale: 0.98 }}
       >
-        {/* NOME DO TIME - Ajustado para descer (top-[15%]) */}
         <div 
             className={`
                 flex items-center gap-2 rounded-full border px-4 py-1.5 transition-all duration-300 z-30
                 ${isServing ? 'bg-white/60 dark:bg-white/10 border-white/20 backdrop-blur-md shadow-lg shadow-black/5' : 'border-transparent'} 
                 ${isLandscape 
-                    ? 'absolute top-[15%] left-1/2 -translate-x-1/2' // Desce para 15% da altura
+                    ? 'absolute top-[15%] left-1/2 -translate-x-1/2' 
                     : 'mb-4 relative'
                 }
             `}
@@ -149,7 +148,6 @@ export const ScoreCard: React.FC<ScoreCardProps> = ({
            </span>
         </div>
         
-        {/* SCORE NUMBER - Ajustado para descer também (mt-[10%]) */}
         <div className={`relative w-full flex items-center justify-center ${isLandscape ? 'h-auto mt-[10%]' : 'h-48 md:h-64'}`}>
             <AnimatePresence mode="popLayout" initial={false} custom={direction}>
                 <motion.span
@@ -166,7 +164,6 @@ export const ScoreCard: React.FC<ScoreCardProps> = ({
             </AnimatePresence>
         </div>
 
-        {/* BADGES */}
         <div className={`h-8 flex items-center justify-center gap-2 ${isLandscape ? 'mt-2' : 'mt-4'}`}>
             <AnimatePresence>
                 {inSuddenDeath && <motion.div initial={{ scale: 0, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0, opacity: 0 }} className="flex items-center gap-1.5 px-3 py-1.5 bg-yellow-500 text-white rounded-full shadow-lg"><Zap size={12} fill="currentColor" /><span className="text-[10px] font-bold tracking-wider uppercase">{t(lang, 'firstTo3')}</span></motion.div>}
@@ -178,3 +175,6 @@ export const ScoreCard: React.FC<ScoreCardProps> = ({
     </div>
   );
 };
+
+// Aqui acontece a mágica:
+export const ScoreCard = React.memo(ScoreCardComponent);

@@ -1,4 +1,3 @@
-
 export type TeamId = 'A' | 'B';
 
 export interface SetHistory {
@@ -19,8 +18,8 @@ export interface GameConfig {
 }
 
 export interface GameState {
-  teamAName: string; // Custom name for Team A
-  teamBName: string; // Custom name for Team B
+  teamAName: string; 
+  teamBName: string; 
   scoreA: number;
   scoreB: number;
   setsA: number;
@@ -30,13 +29,13 @@ export interface GameState {
   isMatchOver: boolean;
   matchWinner: TeamId | null;
   swappedSides: boolean;
-  inSuddenDeath: boolean; // True if scores were reset and we are playing to 3
+  inSuddenDeath: boolean; 
   config: GameConfig;
-  matchDurationSeconds: number; // Total seconds elapsed
+  // matchDurationSeconds REMOVIDO daqui para não causar re-renders globais
   isTimerRunning: boolean;
-  servingTeam: TeamId | null; // Tracks who has the ball
-  timeoutsA: number; // Timeouts used by A in current set (max 2)
-  timeoutsB: number; // Timeouts used by B in current set (max 2)
+  servingTeam: TeamId | null; 
+  timeoutsA: number; 
+  timeoutsB: number; 
 }
 
 export interface ThemeConfig {
