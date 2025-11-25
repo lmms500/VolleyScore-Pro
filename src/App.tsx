@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, Suspense } from 'react'; // Adicione Suspense
+import React, { useState, useEffect, useRef, Suspense } from 'react';
 import { useVolleyGame } from './hooks/useVolleyGame';
 import { useWakeLock } from './hooks/useWakeLock';
 import { useSound } from './hooks/useSound';
@@ -7,10 +7,12 @@ import { useOrientation } from './hooks/useOrientation';
 import { ScoreCard } from './components/ScoreCard';
 import { Controls } from './components/Controls';
 import { HistoryBar } from './components/HistoryBar';
-// Imports dinâmicos (Lazy) para economizar bundle inicial
+
+// Lazy Load dos Modais
 const MatchOverModal = React.lazy(() => import('./components/MatchOverModal').then(module => ({ default: module.MatchOverModal })));
 const SettingsModal = React.lazy(() => import('./components/SettingsModal').then(module => ({ default: module.SettingsModal })));
 const InstallInstructionsModal = React.lazy(() => import('./components/InstallInstructionsModal').then(module => ({ default: module.InstallInstructionsModal })));
+const WelcomeInstallModal = React.lazy(() => import('./components/WelcomeInstallModal').then(module => ({ default: module.WelcomeInstallModal }))); 
 
 import { TeamId, Language, ThemeMode } from './types';
 import { SETS_TO_WIN_MATCH, t } from './constants';
@@ -19,18 +21,44 @@ import { AnimatePresence, motion } from 'framer-motion';
 
 export default function App() {
   const {
-    state, 
-    matchDurationSeconds, // <--- Agora vem separado!
-    isLoaded, addPoint, subtractPoint, undo, resetMatch,
+    state, matchDurationSeconds, isLoaded, addPoint, subtractPoint, undo, resetMatch,
     toggleSides, toggleService, useTimeout, applySettings, setTeamNames, canUndo
   } = useVolleyGame();
 
   useWakeLock();
   const isLandscape = useOrientation();
+  
+  // PWA & Instalação
   const { isInstallable, install, isIOS } = usePWAInstall();
   const [showIOSInstructions, setShowIOSInstructions] = useState(false);
+  const [showWelcome, setShowWelcome] = useState(false);
+
+  // Efeito para verificar primeira visita
+  useEffect(() => {
+    // Só mostra se ainda não tiver visto (verifica localStorage)
+    const hasSeenWelcome = localStorage.getItem('vs_welcome_tutorial_seen');
+    if (!hasSeenWelcome) {
+      // Delay de 2.5s para não ser intrusivo logo de cara
+      const timer = setTimeout(() => {
+        setShowWelcome(true);
+      }, 2500);
+      return () => clearTimeout(timer);
+    }
+  }, []);
+
   const handleInstallClick = () => isIOS ? setShowIOSInstructions(true) : install();
   
+  const handleWelcomeInstall = () => {
+    setShowWelcome(false);
+    localStorage.setItem('vs_welcome_tutorial_seen', 'true'); // Marca como visto
+    handleInstallClick();
+  };
+
+  const handleWelcomeClose = () => {
+    setShowWelcome(false);
+    localStorage.setItem('vs_welcome_tutorial_seen', 'true'); // Marca como visto para não mostrar de novo
+  };
+
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [lang, setLang] = useState<Language>('pt'); 
   const { speak, playBeep } = useSound(lang, soundEnabled);
@@ -39,14 +67,33 @@ export default function App() {
   const prevScoreB = useRef(0);
   const prevSet = useRef(1);
 
-  // ... (Efeitos de som continuam iguais)
-
-  // ... (Estados de UI continuam iguais)
+  // Efeitos de Som
+  useEffect(() => {
+    if (!isLoaded) return;
+    if (state.scoreA > prevScoreA.current || state.scoreB > prevScoreB.current) {
+      playBeep(600, 50);
+      const scoringTeam = state.scoreA > prevScoreA.current ? 'A' : 'B';
+      const nameKey = scoringTeam === 'A' ? 'home' : 'guest';
+      const defaultName = t(lang, nameKey);
+      const teamName = (scoringTeam === 'A' ? state.teamAName : state.teamBName) || defaultName;
+      setTimeout(() => { speak(`${t(lang, 'point')} ${teamName}`); }, 100);
+    }
+    if (state.currentSet > prevSet.current) {
+        const lastSet = state.history[state.history.length - 1];
+        if (lastSet) {
+            const winnerName = lastSet.winner === 'A' ? (state.teamAName || t(lang, 'home')) : (state.teamBName || t(lang, 'guest'));
+            setTimeout(() => { speak(`${t(lang, 'set')} ${winnerName}`); }, 500);
+        }
+    }
+    prevScoreA.current = state.scoreA;
+    prevScoreB.current = state.scoreB;
+    prevSet.current = state.currentSet;
+  }, [state.scoreA, state.scoreB, state.currentSet, isLoaded, lang, playBeep, speak, state.teamAName, state.teamBName, state.history]);
+  
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [themeMode, setThemeMode] = useState<ThemeMode>('dark');
   const [isFullscreen, setIsFullscreen] = useState(false);
 
-  // ... (Efeitos de fullscreen e theme continuam iguais)
   useEffect(() => {
     const root = document.documentElement;
     if (themeMode === 'dark') root.classList.add('dark');
@@ -101,7 +148,7 @@ export default function App() {
             swapped={state.swappedSides}
             lang={lang}
             maxSets={state.config.maxSets}
-            matchDurationSeconds={matchDurationSeconds} // <--- Passando o tempo separado
+            matchDurationSeconds={matchDurationSeconds}
             isTimerRunning={state.isTimerRunning}
             visible={true}
           />
@@ -195,7 +242,6 @@ export default function App() {
         )}
       </AnimatePresence>
 
-      {/* SUSPENSE WRAPPER para Modais Lazy Loaded */}
       <Suspense fallback={null}>
         <MatchOverModal 
           winner={state.matchWinner}
@@ -227,6 +273,18 @@ export default function App() {
               <InstallInstructionsModal 
                   isOpen={showIOSInstructions} 
                   onClose={() => setShowIOSInstructions(false)} 
+                  lang={lang}
+              />
+          )}
+        </AnimatePresence>
+
+        {/* Modal de Boas Vindas e Tutorial */}
+        <AnimatePresence>
+          {showWelcome && (
+              <WelcomeInstallModal 
+                  isOpen={showWelcome} 
+                  onClose={handleWelcomeClose} 
+                  onInstall={handleWelcomeInstall}
                   lang={lang}
               />
           )}
