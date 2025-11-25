@@ -132,15 +132,16 @@ export const ScoreCard: React.FC<ScoreCardProps> = ({
         onTap={() => { if (!isDragging.current) { triggerHaptic(); onAdd(); } }}
         whileTap={{ scale: 0.98 }}
       >
-        {/* CORREÇÃO AQUI: z-20 para garantir prioridade visual */}
-        {/* Se for paisagem (Landscape), ele vira absoluto no topo para não empurrar o número */}
+        {/* NOME DO TIME (Posicionamento Corrigido) */}
         <div 
             className={`
-                relative flex items-center gap-2 rounded-full border px-4 py-1.5 transition-all duration-300 z-20
+                relative flex items-center gap-2 rounded-full border px-4 py-1.5 transition-all duration-300 z-30
                 ${isServing ? 'bg-white/60 dark:bg-white/10 border-white/20 backdrop-blur-md shadow-lg shadow-black/5' : 'border-transparent'} 
                 ${isLandscape 
-                    ? 'absolute top-[16%] left-1/2 -translate-x-1/2 mb-0' // Paisagem: Flutua no topo
-                    : 'mb-4 relative' // Retrato: Segue o fluxo normal
+                    /* MUDANÇA: Agora usamos mt-[env(safe-area)] para empurrar o nome para baixo do notch, 
+                       mas mantemos top-0 para garantir que ele fique no topo do container */
+                    ? 'absolute top-0 left-1/2 -translate-x-1/2 mt-[calc(env(safe-area-inset-top)+0.5rem)]' 
+                    : 'mb-4 relative'
                 }
             `}
         >
@@ -150,7 +151,7 @@ export const ScoreCard: React.FC<ScoreCardProps> = ({
            </span>
         </div>
         
-        {/* O número agora pode crescer livremente */}
+        {/* SCORE NUMBER */}
         <div className={`relative w-full flex items-center justify-center ${isLandscape ? 'h-auto mt-0' : 'h-48 md:h-64'}`}>
             <AnimatePresence mode="popLayout" initial={false} custom={direction}>
                 <motion.span
