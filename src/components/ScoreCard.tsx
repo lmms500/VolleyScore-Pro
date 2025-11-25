@@ -65,9 +65,14 @@ const ScoreCardComponent: React.FC<ScoreCardProps> = ({
     exit: (dir: number) => ({ y: dir > 0 ? -80 : 80, opacity: 0, scale: 1.1, position: 'absolute' as const })
   };
 
+  // AJUSTE FINO NO TAMANHO DA FONTE (Reduzi levemente todos os tamanhos)
   const getFontSize = () => {
-    if (isFullscreen) return isLandscape ? 'text-[15rem] md:text-[20rem]' : 'text-[12rem] md:text-[16rem]';
-    return isLandscape ? 'text-[6rem]' : 'text-[10rem] md:text-[14rem]';
+    if (isFullscreen) {
+      // Tela Cheia: Paisagem (13rem) / Retrato (10rem)
+      return isLandscape ? 'text-[13rem] md:text-[18rem]' : 'text-[10rem] md:text-[14rem]';
+    }
+    // Normal: Paisagem (5rem) / Retrato (9rem)
+    return isLandscape ? 'text-[5rem]' : 'text-[9rem] md:text-[12rem]';
   };
 
   return (
@@ -132,12 +137,13 @@ const ScoreCardComponent: React.FC<ScoreCardProps> = ({
         onTap={() => { if (!isDragging.current) { triggerHaptic(); onAdd(); } }}
         whileTap={{ scale: 0.98 }}
       >
+        {/* NOME DO TIME */}
         <div 
             className={`
                 flex items-center gap-2 rounded-full border px-4 py-1.5 transition-all duration-300 z-30
                 ${isServing ? 'bg-white/60 dark:bg-white/10 border-white/20 backdrop-blur-md shadow-lg shadow-black/5' : 'border-transparent'} 
                 ${isLandscape 
-                    ? 'absolute top-[15%] left-1/2 -translate-x-1/2' 
+                    ? 'absolute top-[12%] left-1/2 -translate-x-1/2' // AJUSTE: Subi de 15% para 12%
                     : 'mb-4 relative'
                 }
             `}
@@ -148,6 +154,7 @@ const ScoreCardComponent: React.FC<ScoreCardProps> = ({
            </span>
         </div>
         
+        {/* SCORE NUMBER */}
         <div className={`relative w-full flex items-center justify-center ${isLandscape ? 'h-auto mt-[10%]' : 'h-48 md:h-64'}`}>
             <AnimatePresence mode="popLayout" initial={false} custom={direction}>
                 <motion.span
@@ -164,7 +171,9 @@ const ScoreCardComponent: React.FC<ScoreCardProps> = ({
             </AnimatePresence>
         </div>
 
-        <div className={`h-8 flex items-center justify-center gap-2 ${isLandscape ? 'mt-2' : 'mt-4'}`}>
+        {/* BADGES (Set Point / Match Point) */}
+        {/* AJUSTE: Reduzi mt-2 para mt-0 ou mt-1 no landscape para subir os badges */}
+        <div className={`h-8 flex items-center justify-center gap-2 ${isLandscape ? 'mt-0' : 'mt-4'}`}>
             <AnimatePresence>
                 {inSuddenDeath && <motion.div initial={{ scale: 0, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0, opacity: 0 }} className="flex items-center gap-1.5 px-3 py-1.5 bg-yellow-500 text-white rounded-full shadow-lg"><Zap size={12} fill="currentColor" /><span className="text-[10px] font-bold tracking-wider uppercase">{t(lang, 'firstTo3')}</span></motion.div>}
                 {isMatchPoint && <motion.div initial={{ scale: 0, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0, opacity: 0 }} className="px-4 py-1.5 bg-gradient-to-r from-red-500 to-rose-600 text-white rounded-full shadow-lg animate-pulse border border-rose-400"><span className="text-[11px] font-black tracking-widest uppercase">{t(lang, 'matchPoint')}</span></motion.div>}
@@ -176,5 +185,4 @@ const ScoreCardComponent: React.FC<ScoreCardProps> = ({
   );
 };
 
-// Aqui acontece a mágica:
 export const ScoreCard = React.memo(ScoreCardComponent);
