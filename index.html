@@ -8,7 +8,10 @@
     <meta name="theme-color" content="#020617" />
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <link rel="manifest" href="/manifest.json">
+    <meta name="apple-mobile-web-app-title" content="VolleyScore">
+    
+    <link rel="manifest" href="manifest.json">
+    <link rel="icon" type="image/png" href="pwa-192x192.png">
     
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -29,16 +32,10 @@
     </script>
     
     <style>
-      body {
-        overscroll-behavior-y: contain;
-        -webkit-tap-highlight-color: transparent;
-      }
+      body { overscroll-behavior-y: contain; -webkit-tap-highlight-color: transparent; }
       .no-scrollbar::-webkit-scrollbar { display: none; }
       .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-      .mask-gradient-right {
-        mask-image: linear-gradient(to right, black 85%, transparent 100%);
-        -webkit-mask-image: linear-gradient(to right, black 85%, transparent 100%);
-      }
+      .mask-gradient-right { mask-image: linear-gradient(to right, black 85%, transparent 100%); -webkit-mask-image: linear-gradient(to right, black 85%, transparent 100%); }
     </style>
   <script type="importmap">
 {
@@ -61,9 +58,9 @@
     <script>
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
-          navigator.serviceWorker.register('/service-worker.js')
-            .then(reg => console.log('SW registrado!', reg.scope))
-            .catch(err => console.log('Falha no SW:', err));
+          navigator.serviceWorker.register('service-worker.js')
+            .then(reg => console.log('✅ Service Worker registrado com sucesso:', reg.scope))
+            .catch(err => console.error('❌ Falha ao registrar Service Worker:', err));
         });
       }
     </script>
