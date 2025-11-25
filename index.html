@@ -4,65 +4,31 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
     <title>VolleyScore Pro</title>
-    
+
     <meta name="theme-color" content="#020617" />
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="VolleyScore">
-    
+
     <link rel="manifest" href="manifest.json">
     <link rel="icon" type="image/png" href="pwa-192x192.png">
-    
+
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&display=swap" rel="stylesheet">
-    
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-      tailwind.config = {
-        darkMode: 'class',
-        theme: {
-          extend: {
-            fontFamily: {
-              sans: ['Inter', 'sans-serif'],
-            }
-          }
-        }
-      }
-    </script>
-    
-    <style>
-      body { overscroll-behavior-y: contain; -webkit-tap-highlight-color: transparent; }
-      .no-scrollbar::-webkit-scrollbar { display: none; }
-      .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-      .mask-gradient-right { mask-image: linear-gradient(to right, black 85%, transparent 100%); -webkit-mask-image: linear-gradient(to right, black 85%, transparent 100%); }
-    </style>
-  <script type="importmap">
-{
-  "imports": {
-    "framer-motion": "https://aistudiocdn.com/framer-motion@^12.23.24",
-    "react-dom/client": "https://aistudiocdn.com/react-dom@^19.2.0/client",
-    "react-dom": "https://aistudiocdn.com/react-dom@^19.2.0",
-    "react/": "https://aistudiocdn.com/react@^19.2.0/",
-    "react": "https://aistudiocdn.com/react@^19.2.0",
-    "lucide-react": "https://aistudiocdn.com/lucide-react@^0.554.0"
-  }
-}
-</script>
-<link rel="stylesheet" href="/index.css">
-</head>
-<body class="bg-slate-50 dark:bg-[#020617] text-slate-900 dark:text-slate-50 overflow-hidden h-[100dvh] w-screen select-none transition-colors duration-300 font-sans">
+  </head>
+  <body class="bg-slate-50 dark:bg-[#020617] text-slate-900 dark:text-slate-50 overflow-hidden h-[100dvh] w-screen select-none transition-colors duration-300 font-sans">
     <div id="root" class="h-full w-full"></div>
-    <script type="module" src="/index.tsx"></script>
-    
+    <script type="module" src="/src/index.tsx"></script>
+
     <script>
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
-          navigator.serviceWorker.register('service-worker.js')
-            .then(reg => console.log('✅ Service Worker registrado com sucesso:', reg.scope))
-            .catch(err => console.error('❌ Falha ao registrar Service Worker:', err));
+          navigator.serviceWorker.register('/service-worker.js')
+            .then(reg => console.log('SW registrado!', reg.scope))
+            .catch(err => console.log('Falha no SW:', err));
         });
       }
     </script>
-</body>
+  </body>
 </html>
