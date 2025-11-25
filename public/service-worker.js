@@ -1,5 +1,5 @@
 // MUDAMOS O NOME PARA FORÇAR A ATUALIZAÇÃO IMEDIATA
-const CACHE_NAME = 'volleyscore-v2-pro';
+const CACHE_NAME = 'volleyscore-v3-pro';
 
 const ASSETS_TO_CACHE = [
   '/',
