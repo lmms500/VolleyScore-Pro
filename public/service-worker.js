@@ -1,4 +1,6 @@
-const CACHE_NAME = 'volleyscore-v1';
+// MUDAMOS O NOME PARA FORÇAR A ATUALIZAÇÃO IMEDIATA
+const CACHE_NAME = 'volleyscore-v2-pro';
+
 const ASSETS_TO_CACHE = [
   '/',
   '/index.html',
@@ -7,9 +9,9 @@ const ASSETS_TO_CACHE = [
   '/pwa-512x512.png'
 ];
 
-// Instalação: Cache dos arquivos essenciais
+// Instalação
 self.addEventListener('install', (event) => {
-  self.skipWaiting();
+  self.skipWaiting(); // Força o SW a ativar imediatamente
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
       return cache.addAll(ASSETS_TO_CACHE);
@@ -17,13 +19,14 @@ self.addEventListener('install', (event) => {
   );
 });
 
-// Ativação: Limpa caches antigos
+// Ativação (Limpa caches antigos v1)
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((cacheNames) => {
       return Promise.all(
         cacheNames.map((cache) => {
           if (cache !== CACHE_NAME) {
+            console.log('Deletando cache antigo:', cache);
             return caches.delete(cache);
           }
         })
@@ -33,11 +36,38 @@ self.addEventListener('activate', (event) => {
   return self.clients.claim();
 });
 
-// Interceptação: Serve cache se offline, ou busca na rede
+// Estratégia de Fetch Inteligente
 self.addEventListener('fetch', (event) => {
-  event.respondWith(
-    caches.match(event.request).then((response) => {
-      return response || fetch(event.request);
-    })
-  );
+  const requestUrl = new URL(event.request.url);
+
+  // 1. Se for navegação (HTML) -> Network First (Internet Primeiro)
+  // Isso evita o erro de tela branca após deploy
+  if (event.request.mode === 'navigate') {
+    event.respondWith(
+      fetch(event.request)
+        .then((networkResponse) => {
+          return caches.open(CACHE_NAME).then((cache) => {
+            cache.put(event.request, networkResponse.clone());
+            return networkResponse;
+          });
+        })
+        .catch(() => {
+          // Se falhar (offline), pega do cache
+          return caches.match(event.request);
+        })
+    );
+  } 
+  // 2. Se for arquivo estático (JS, CSS, PNG) -> Cache First (Cache Primeiro)
+  else {
+    event.respondWith(
+      caches.match(event.request).then((cachedResponse) => {
+        return cachedResponse || fetch(event.request).then((networkResponse) => {
+          return caches.open(CACHE_NAME).then((cache) => {
+            cache.put(event.request, networkResponse.clone());
+            return networkResponse;
+          });
+        });
+      })
+    );
+  }
 });
