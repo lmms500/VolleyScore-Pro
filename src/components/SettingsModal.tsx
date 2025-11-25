@@ -1,7 +1,6 @@
-
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Settings, X, Check, Info, Moon, Sun, Languages, Users, BookOpen } from 'lucide-react';
+import { Settings, X, Check, Info, Moon, Sun, Languages, Users, BookOpen, Zap, Trophy, LayoutTemplate } from 'lucide-react';
 import { GameConfig, Language, ThemeMode } from '../types';
 import { t } from '../constants';
 
@@ -62,7 +61,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const [showOfficialRules, setShowOfficialRules] = useState(false);
 
   // Sync internal state when modal opens
-  React.useEffect(() => {
+  useEffect(() => {
     if (isOpen) {
       setConfig(currentConfig);
       setNameA(teamAName);
@@ -79,8 +78,29 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   };
 
   // Helper to calculate sets to win based on maxSets
-  // maxSets = 2*wins - 1  => wins = (maxSets + 1) / 2
   const currentSetsToWin = Math.ceil(config.maxSets / 2);
+
+  // DEFINIÇÃO DOS PRESETS
+  const applyPreset = (type: 'monday' | 'official') => {
+    if (type === 'monday') {
+      setConfig({
+        ...config,
+        maxSets: 1,             // 1 Set para vencer (Jogo único)
+        pointsPerSet: 15,       // 15 pontos
+        hasTieBreak: false,     // Sem tie break
+        deuceType: 'sudden_death_3pt' // Zera no empate
+      });
+    } else {
+      setConfig({
+        ...config,
+        maxSets: 5,             // Melhor de 5
+        pointsPerSet: 25,       // 25 pontos
+        hasTieBreak: true,      // Tie break no 5º
+        tieBreakPoints: 15,
+        deuceType: 'standard'   // Vai a 2
+      });
+    }
+  };
 
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
@@ -104,7 +124,44 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
         <div className="p-6 space-y-8 overflow-y-auto custom-scrollbar">
           
-          {/* Official Rules Section */}
+          {/* --- NOVA SEÇÃO: PRESETS --- */}
+          <div>
+            <label className="text-slate-400 text-xs font-bold uppercase tracking-wider mb-3 flex items-center gap-2">
+              <LayoutTemplate size={12} />
+              {lang === 'pt' ? 'Modos Rápidos' : 'Quick Presets'}
+            </label>
+            <div className="grid grid-cols-2 gap-3">
+                {/* Botão Vôlei de Segunda */}
+                <button
+                    onClick={() => applyPreset('monday')}
+                    className={`py-3 px-3 rounded-xl font-bold text-xs flex flex-col items-center justify-center gap-2 border transition-all ${
+                        config.maxSets === 1 && config.pointsPerSet === 15 && config.deuceType === 'sudden_death_3pt'
+                        ? 'bg-rose-50 dark:bg-rose-900/20 border-rose-500 text-rose-600 dark:text-rose-400 ring-1 ring-rose-500'
+                        : 'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-white/5 text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700'
+                    }`}
+                >
+                    <Zap size={20} className={config.maxSets === 1 && config.pointsPerSet === 15 && config.deuceType === 'sudden_death_3pt' ? 'text-rose-500' : 'text-slate-400'} />
+                    <span>Vôlei de Segunda</span>
+                </button>
+
+                {/* Botão Oficial */}
+                <button
+                    onClick={() => applyPreset('official')}
+                    className={`py-3 px-3 rounded-xl font-bold text-xs flex flex-col items-center justify-center gap-2 border transition-all ${
+                        config.maxSets === 5 && config.pointsPerSet === 25 && config.deuceType === 'standard'
+                        ? 'bg-indigo-50 dark:bg-indigo-900/20 border-indigo-500 text-indigo-600 dark:text-indigo-400 ring-1 ring-indigo-500'
+                        : 'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-white/5 text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700'
+                    }`}
+                >
+                    <Trophy size={20} className={config.maxSets === 5 && config.pointsPerSet === 25 && config.deuceType === 'standard' ? 'text-indigo-500' : 'text-slate-400'} />
+                    <span>{lang === 'pt' ? 'Oficial (Padrão)' : 'Official (Standard)'}</span>
+                </button>
+            </div>
+          </div>
+
+          <div className="h-px bg-slate-200 dark:bg-white/5" />
+
+          {/* Official Rules Info */}
           <div className="bg-slate-50 dark:bg-slate-800/40 rounded-xl p-4 border border-slate-100 dark:border-white/5">
              <button 
                onClick={() => setShowOfficialRules(!showOfficialRules)}
@@ -191,7 +248,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
           <div className="h-px bg-slate-200 dark:bg-white/5" />
 
-          {/* Sets Selection (Sets to Win) */}
+          {/* Sets Selection */}
           <div>
             <label className="text-slate-400 text-xs font-bold uppercase tracking-wider mb-3 block">
               {t(lang, 'matchType')}
@@ -240,7 +297,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               </label>
             </div>
             
-            {/* Enable/Disable TieBreak */}
             <div className="mb-3 flex items-center gap-3">
                 <button 
                   onClick={() => setConfig({ ...config, hasTieBreak: !config.hasTieBreak })}
