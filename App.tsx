@@ -2,11 +2,13 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useVolleyGame } from './hooks/useVolleyGame';
 import { useWakeLock } from './hooks/useWakeLock';
 import { useSound } from './hooks/useSound';
+import { usePWAInstall } from './hooks/usePWAInstall'; // Novo Hook
 import { ScoreCard } from './components/ScoreCard';
 import { Controls } from './components/Controls';
 import { HistoryBar } from './components/HistoryBar';
 import { MatchOverModal } from './components/MatchOverModal';
 import { SettingsModal } from './components/SettingsModal';
+import { InstallInstructionsModal } from './components/InstallInstructionsModal'; // Novo Modal
 import { TeamId, Language, ThemeMode } from './types';
 import { SETS_TO_WIN_MATCH, t } from './constants';
 import { Minimize, Volume2, VolumeX } from 'lucide-react';
@@ -19,6 +21,18 @@ export default function App() {
   } = useVolleyGame();
 
   useWakeLock();
+  
+  // PWA Install Logic
+  const { isInstallable, install, isIOS } = usePWAInstall();
+  const [showIOSInstructions, setShowIOSInstructions] = useState(false);
+
+  const handleInstallClick = () => {
+    if (isIOS) {
+      setShowIOSInstructions(true);
+    } else {
+      install();
+    }
+  };
   
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [lang, setLang] = useState<Language>('pt'); 
@@ -96,7 +110,6 @@ export default function App() {
   const targetPoints = state.inSuddenDeath ? 3 : (useTieBreak ? state.config.tieBreakPoints : state.config.pointsPerSet);
 
   return (
-    // MUDANÇA: h-[100dvh] e padding-safe para garantir que nada fique coberto
     <div className="h-[100dvh] w-full flex flex-col bg-slate-50 dark:bg-[#020617] transition-colors duration-300 relative overflow-hidden pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)]">
       
       <div className="absolute top-3 right-3 z-[60] mt-[env(safe-area-inset-top)]">
@@ -172,6 +185,8 @@ export default function App() {
         onSettings={() => setIsSettingsOpen(true)}
         onToggleLayout={() => setIsLandscape(!isLandscape)}
         onFullscreen={toggleFullscreenMode}
+        onInstall={handleInstallClick} // Handler de instalação
+        canInstall={isInstallable}     // Visibilidade do botão
         canUndo={canUndo}
         lang={lang}
         isLandscape={isLandscape}
@@ -216,6 +231,17 @@ export default function App() {
         themeMode={themeMode}
         setThemeMode={setThemeMode}
       />
+
+      {/* Modal de Ajuda para iOS */}
+      <AnimatePresence>
+        {showIOSInstructions && (
+            <InstallInstructionsModal 
+                isOpen={showIOSInstructions} 
+                onClose={() => setShowIOSInstructions(false)} 
+                lang={lang}
+            />
+        )}
+      </AnimatePresence>
     </div>
   );
 }

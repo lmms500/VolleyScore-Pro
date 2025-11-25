@@ -1,6 +1,5 @@
-
 import React, { useState } from 'react';
-import { RefreshCcw, ArrowLeftRight, RotateCcw, Check, X, Settings, Smartphone, Maximize } from 'lucide-react';
+import { RefreshCcw, ArrowLeftRight, RotateCcw, Check, X, Settings, Smartphone, Maximize, Download } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Language } from '../types';
 
@@ -11,6 +10,8 @@ interface ControlsProps {
   onSettings: () => void;
   onToggleLayout: () => void;
   onFullscreen: () => void;
+  onInstall: () => void;    // Nova prop
+  canInstall: boolean;      // Nova prop
   canUndo: boolean;
   lang: Language;
   isLandscape: boolean;
@@ -18,20 +19,11 @@ interface ControlsProps {
 }
 
 export const Controls: React.FC<ControlsProps> = ({ 
-    onUndo, 
-    onReset, 
-    onSwap, 
-    onSettings, 
-    onToggleLayout,
-    onFullscreen,
-    canUndo, 
-    lang, 
-    isLandscape,
-    visible
+    onUndo, onReset, onSwap, onSettings, onToggleLayout, onFullscreen,
+    onInstall, canInstall, // Recebendo novas props
+    canUndo, lang, isLandscape, visible
 }) => {
   const [confirmReset, setConfirmReset] = useState(false);
-
-  // Dock Button Style
   const btnClass = "relative flex items-center justify-center w-12 h-12 rounded-2xl text-slate-500 dark:text-slate-400 transition-all active:scale-90 hover:bg-slate-100 dark:hover:bg-white/10 hover:text-slate-900 dark:hover:text-white";
   const iconSize = 22;
 
@@ -53,15 +45,13 @@ export const Controls: React.FC<ControlsProps> = ({
          <button 
             onClick={onToggleLayout}
             className={`${btnClass} ${isLandscape ? 'text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-500/10' : ''}`}
-            aria-label="Rotate Layout"
         >
             <Smartphone size={iconSize} className={isLandscape ? 'rotate-90' : ''} style={{ transition: 'transform 0.3s ease' }} />
         </button>
 
-        {/* Divider */}
         <div className="w-px h-6 bg-slate-300 dark:bg-white/10 mx-1 rounded-full"></div>
 
-        {/* Reset Logic */}
+        {/* Reset */}
         <div className="relative">
         <AnimatePresence mode="wait">
           {!confirmReset ? (
@@ -72,7 +62,6 @@ export const Controls: React.FC<ControlsProps> = ({
               exit={{ opacity: 0, scale: 0.5 }}
               onClick={() => setConfirmReset(true)}
               className={btnClass}
-              aria-label="Reset Match"
             >
               <RefreshCcw size={iconSize} />
             </motion.button>
@@ -106,21 +95,26 @@ export const Controls: React.FC<ControlsProps> = ({
             onClick={onUndo}
             disabled={!canUndo}
             className={`${btnClass} ${!canUndo ? 'opacity-30 cursor-not-allowed' : ''}`}
-            aria-label="Undo"
         >
             <RotateCcw size={iconSize} />
         </button>
 
-        {/* Divider */}
         <div className="w-px h-6 bg-slate-300 dark:bg-white/10 mx-1 rounded-full"></div>
 
+        {/* Install Button (Novo) - Só aparece se instalável */}
+        {canInstall && (
+             <button onClick={onInstall} className={`${btnClass} text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-500/10`}>
+                <Download size={iconSize} />
+            </button>
+        )}
+
         {/* Settings */}
-        <button onClick={onSettings} className={btnClass} aria-label="Settings">
+        <button onClick={onSettings} className={btnClass}>
             <Settings size={iconSize} />
         </button>
         
-        {/* Fullscreen Trigger */}
-        <button onClick={onFullscreen} className={btnClass} aria-label="Fullscreen">
+        {/* Fullscreen */}
+        <button onClick={onFullscreen} className={btnClass}>
             <Maximize size={iconSize} />
         </button>
 
