@@ -2,17 +2,29 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Estilos globais que estavam no HTML */
+/* Previne comportamento de elástico no iOS */
 body {
   overscroll-behavior-y: contain;
   -webkit-tap-highlight-color: transparent;
+  font-feature-settings: "tnum"; /* Ativa números tabulares na fonte Inter */
+  font-variant-numeric: tabular-nums;
 }
 
-/* Utilitários personalizados */
+/* Utilitários */
 .no-scrollbar::-webkit-scrollbar { display: none; }
 .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 
 .mask-gradient-right {
   mask-image: linear-gradient(to right, black 85%, transparent 100%);
   -webkit-mask-image: linear-gradient(to right, black 85%, transparent 100%);
+}
+
+/* Fundo Animado Sutil */
+@keyframes subtle-pulse {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 0.6; }
+}
+
+.animate-subtle-pulse {
+  animation: subtle-pulse 4s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }

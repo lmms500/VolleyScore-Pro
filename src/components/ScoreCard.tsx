@@ -65,11 +65,19 @@ const ScoreCardComponent: React.FC<ScoreCardProps> = ({
     exit: (dir: number) => ({ y: dir > 0 ? -80 : 80, opacity: 0, scale: 1.1, position: 'absolute' as const })
   };
 
+  // FONTE RESPONSIVA (CLAMP + VH/VW)
+  // Isso garante que o texto cresça com a tela, mas não exploda o layout
   const getFontSize = () => {
     if (isFullscreen) {
-      return isLandscape ? 'text-[13rem] md:text-[18rem]' : 'text-[10rem] md:text-[14rem]';
+      // Tela cheia: Usa altura da tela (vh) como base
+      return isLandscape 
+        ? 'text-[35vh] md:text-[40vh]'  // Paisagem Full
+        : 'text-[25vh] md:text-[30vh]'; // Retrato Full
     }
-    return isLandscape ? 'text-[5rem]' : 'text-[9rem] md:text-[12rem]';
+    // Normal: Usa tamanho fixo responsivo
+    return isLandscape 
+      ? 'text-7xl lg:text-8xl' 
+      : 'text-8xl md:text-9xl lg:text-[10rem]';
   };
 
   return (
@@ -88,7 +96,7 @@ const ScoreCardComponent: React.FC<ScoreCardProps> = ({
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="absolute inset-0 bg-black/10 dark:bg-white/5 backdrop-blur-[1px] pointer-events-none z-0" />
       )}
 
-      {/* Visual Feedback Icons */}
+      {/* Feedback Icons */}
       <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-0">
           <motion.div style={{ opacity: upOpacity, scale: upScale, y: -feedbackDistance }} className="absolute w-16 h-16 rounded-full bg-emerald-500/90 text-white shadow-2xl flex items-center justify-center backdrop-blur-md border border-white/20">
             <Plus size={32} strokeWidth={3} />
@@ -98,7 +106,7 @@ const ScoreCardComponent: React.FC<ScoreCardProps> = ({
           </motion.div>
       </div>
 
-      {/* TOP HEADER (Sets, Service) */}
+      {/* TOP HEADER */}
       <div className={`absolute w-full px-4 md:px-6 flex items-start justify-between z-20 ${isFullscreen ? 'top-6' : 'top-2 md:top-4'}`}>
         <div className="flex flex-col gap-1">
              <span className={`text-[10px] font-bold uppercase tracking-widest opacity-60 ${theme.text}`}>Sets</span>
@@ -134,7 +142,7 @@ const ScoreCardComponent: React.FC<ScoreCardProps> = ({
         onTap={() => { if (!isDragging.current) { triggerHaptic(); onAdd(); } }}
         whileTap={{ scale: 0.98 }}
       >
-        {/* NOME DO TIME (Top 12%) */}
+        {/* NOME DO TIME */}
         <div 
             className={`
                 flex items-center gap-2 rounded-full border px-4 py-1.5 transition-all duration-300 z-30
@@ -151,7 +159,7 @@ const ScoreCardComponent: React.FC<ScoreCardProps> = ({
            </span>
         </div>
         
-        {/* SCORE NUMBER (Centralizado - mt-0 no landscape) */}
+        {/* SCORE NUMBER (TABULAR NUMS) */}
         <div className={`relative w-full flex items-center justify-center ${isLandscape ? 'h-auto mt-0' : 'h-48 md:h-64'}`}>
             <AnimatePresence mode="popLayout" initial={false} custom={direction}>
                 <motion.span
@@ -160,6 +168,7 @@ const ScoreCardComponent: React.FC<ScoreCardProps> = ({
                     variants={scoreVariants}
                     initial="enter" animate="center" exit="exit"
                     transition={{ type: "spring", stiffness: 350, damping: 25 }}
+                    // ADICIONADO 'tabular-nums' explicitamente aqui
                     className={`leading-none font-black tabular-nums tracking-tighter ${theme.scoreColor} drop-shadow-2xl ${getFontSize()}`}
                     style={{ textShadow: '0 10px 40px rgba(0,0,0,0.1)' }}
                 >
@@ -168,7 +177,7 @@ const ScoreCardComponent: React.FC<ScoreCardProps> = ({
             </AnimatePresence>
         </div>
 
-        {/* BADGES (Bottom 12%) */}
+        {/* BADGES */}
         <div 
             className={`
                 flex items-center justify-center gap-2 z-30 transition-all duration-300

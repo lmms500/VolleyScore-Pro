@@ -4,13 +4,12 @@ import { useWakeLock } from './hooks/useWakeLock';
 import { useSound } from './hooks/useSound';
 import { usePWAInstall } from './hooks/usePWAInstall';
 import { useOrientation } from './hooks/useOrientation';
-import { useServiceWorker } from './hooks/useServiceWorker'; // Novo Hook de Update
+import { useServiceWorker } from './hooks/useServiceWorker';
 import { ScoreCard } from './components/ScoreCard';
 import { Controls } from './components/Controls';
 import { HistoryBar } from './components/HistoryBar';
-import { UpdateToast } from './components/UpdateToast'; // Novo Componente de Aviso
+import { UpdateToast } from './components/UpdateToast';
 
-// Lazy Load dos Modais (Carregamento sob demanda para performance)
 const MatchOverModal = React.lazy(() => import('./components/MatchOverModal').then(module => ({ default: module.MatchOverModal })));
 const SettingsModal = React.lazy(() => import('./components/SettingsModal').then(module => ({ default: module.SettingsModal })));
 const InstallInstructionsModal = React.lazy(() => import('./components/InstallInstructionsModal').then(module => ({ default: module.InstallInstructionsModal })));
@@ -22,7 +21,6 @@ import { Minimize, Volume2, VolumeX } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
 
 export default function App() {
-  // 1. Hooks Principais
   const {
     state, matchDurationSeconds, isLoaded, addPoint, subtractPoint, undo, resetMatch,
     toggleSides, toggleService, useTimeout, applySettings, setTeamNames, canUndo
@@ -30,23 +28,15 @@ export default function App() {
 
   useWakeLock();
   const isLandscape = useOrientation();
-  
-  // 2. Sistema de Atualização (Service Worker)
   const { showReload, reloadPage } = useServiceWorker();
-
-  // 3. Instalação PWA
   const { isInstallable, install, isIOS } = usePWAInstall();
   const [showIOSInstructions, setShowIOSInstructions] = useState(false);
   const [showWelcome, setShowWelcome] = useState(false);
 
-  // Lógica de Boas-vindas (Tutorial)
   useEffect(() => {
     const hasSeenWelcome = localStorage.getItem('vs_welcome_tutorial_seen');
     if (!hasSeenWelcome) {
-      // Delay curto (0.5s) para não interromper a abertura do app
-      const timer = setTimeout(() => {
-        setShowWelcome(true);
-      }, 500);
+      const timer = setTimeout(() => setShowWelcome(true), 500);
       return () => clearTimeout(timer);
     }
   }, []);
@@ -64,7 +54,6 @@ export default function App() {
     localStorage.setItem('vs_welcome_tutorial_seen', 'true');
   };
 
-  // 4. Áudio e Feedback
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [lang, setLang] = useState<Language>('pt'); 
   const { speak, playBeep } = useSound(lang, soundEnabled);
@@ -75,7 +64,6 @@ export default function App() {
 
   useEffect(() => {
     if (!isLoaded) return;
-    // Som de Ponto
     if (state.scoreA > prevScoreA.current || state.scoreB > prevScoreB.current) {
       playBeep(600, 50);
       const scoringTeam = state.scoreA > prevScoreA.current ? 'A' : 'B';
@@ -84,7 +72,6 @@ export default function App() {
       const teamName = (scoringTeam === 'A' ? state.teamAName : state.teamBName) || defaultName;
       setTimeout(() => { speak(`${t(lang, 'point')} ${teamName}`); }, 100);
     }
-    // Som de Fim de Set
     if (state.currentSet > prevSet.current) {
         const lastSet = state.history[state.history.length - 1];
         if (lastSet) {
@@ -97,7 +84,6 @@ export default function App() {
     prevSet.current = state.currentSet;
   }, [state.scoreA, state.scoreB, state.currentSet, isLoaded, lang, playBeep, speak, state.teamAName, state.teamBName, state.history]);
   
-  // 5. UI e Temas
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [themeMode, setThemeMode] = useState<ThemeMode>('dark');
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -135,129 +121,129 @@ export default function App() {
   const targetPoints = state.inSuddenDeath ? 3 : (useTieBreak ? state.config.tieBreakPoints : state.config.pointsPerSet);
 
   return (
-    <div className="h-[100dvh] w-full flex flex-col bg-slate-50 dark:bg-[#020617] transition-colors duration-300 relative overflow-hidden">
+    <div className="h-[100dvh] w-full flex flex-col items-center bg-slate-50 dark:bg-[#020617] transition-colors duration-300 relative overflow-hidden">
       
-      {/* Toast de Atualização Automática */}
-      <UpdateToast show={showReload} onReload={reloadPage} />
+      {/* CONTAINER MAXIMO (Responsividade para Tablets/PC) */}
+      <div className="w-full h-full max-w-[1600px] relative flex flex-col shadow-2xl">
 
-      {/* Botão de Som (Escondido em Fullscreen) */}
-      {!isFullscreen && (
-        <div className="absolute top-3 right-3 z-[60] mt-[env(safe-area-inset-top)] mr-[env(safe-area-inset-right)]">
-            <button 
-              onClick={() => setSoundEnabled(!soundEnabled)} 
-              className="p-2.5 bg-white/10 dark:bg-white/5 backdrop-blur-md rounded-full text-slate-500 dark:text-slate-400 border border-black/5 dark:border-white/10 shadow-sm hover:bg-white/20 active:scale-95 transition-all"
-            >
-                {soundEnabled ? <Volume2 size={18} /> : <VolumeX size={18} />}
-            </button>
-        </div>
-      )}
+        <UpdateToast show={showReload} onReload={reloadPage} />
 
-      {/* Barra de Histórico */}
-      {!isFullscreen && (
-        <div className="pt-[env(safe-area-inset-top)] pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)]">
-          <HistoryBar 
-            history={state.history} 
-            currentSet={state.currentSet}
-            swapped={state.swappedSides}
-            lang={lang}
+        {!isFullscreen && (
+          <div className="absolute top-3 right-3 z-[60] mt-[env(safe-area-inset-top)] mr-[env(safe-area-inset-right)]">
+              <button 
+                onClick={() => setSoundEnabled(!soundEnabled)} 
+                className="p-2.5 bg-white/10 dark:bg-white/5 backdrop-blur-md rounded-full text-slate-500 dark:text-slate-400 border border-black/5 dark:border-white/10 shadow-sm hover:bg-white/20 active:scale-95 transition-all"
+              >
+                  {soundEnabled ? <Volume2 size={18} /> : <VolumeX size={18} />}
+              </button>
+          </div>
+        )}
+
+        {!isFullscreen && (
+          <div className="pt-[env(safe-area-inset-top)] pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)] w-full z-50">
+            <HistoryBar 
+              history={state.history} 
+              currentSet={state.currentSet}
+              swapped={state.swappedSides}
+              lang={lang}
+              maxSets={state.config.maxSets}
+              matchDurationSeconds={matchDurationSeconds}
+              isTimerRunning={state.isTimerRunning}
+              visible={true}
+            />
+          </div>
+        )}
+
+        {/* MAIN GRID - Adaptável */}
+        <main className={`flex-1 flex md:flex-row relative overflow-hidden ${isLandscape ? 'flex-row' : 'flex-col'} ${isFullscreen ? 'p-0' : ''}`}>
+          <ScoreCard
+            teamId={leftTeamId}
+            teamName={leftTeamId === 'A' ? state.teamAName : state.teamBName}
+            score={leftTeamId === 'A' ? state.scoreA : state.scoreB}
+            opponentScore={leftTeamId === 'A' ? state.scoreB : state.scoreA}
+            setsWon={leftTeamId === 'A' ? state.setsA : state.setsB}
             maxSets={state.config.maxSets}
-            matchDurationSeconds={matchDurationSeconds}
-            isTimerRunning={state.isTimerRunning}
-            visible={true}
-          />
-        </div>
-      )}
-
-      {/* Área Principal de Pontuação */}
-      <main className={`flex-1 flex md:flex-row relative overflow-hidden ${isLandscape ? 'flex-row' : 'flex-col'} ${isFullscreen ? 'p-0' : ''}`}>
-        <ScoreCard
-          teamId={leftTeamId}
-          teamName={leftTeamId === 'A' ? state.teamAName : state.teamBName}
-          score={leftTeamId === 'A' ? state.scoreA : state.scoreB}
-          opponentScore={leftTeamId === 'A' ? state.scoreB : state.scoreA}
-          setsWon={leftTeamId === 'A' ? state.setsA : state.setsB}
-          maxSets={state.config.maxSets}
-          setsToWinMatch={SETS_TO_WIN_MATCH(state.config.maxSets)}
-          onAdd={() => addPoint(leftTeamId)}
-          onSubtract={() => subtractPoint(leftTeamId)}
-          onToggleService={toggleService}
-          onUseTimeout={() => useTimeout(leftTeamId)}
-          isWinner={state.matchWinner === leftTeamId}
-          inSuddenDeath={state.inSuddenDeath}
-          isServing={state.servingTeam === leftTeamId}
-          timeoutsUsed={leftTeamId === 'A' ? state.timeoutsA : state.timeoutsB}
-          pointsToWinSet={targetPoints}
-          lang={lang}
-          isLandscape={isLandscape}
-          isFullscreen={isFullscreen}
-          className={isLandscape 
-            ? "pl-[env(safe-area-inset-left)] py-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]" 
-            : "pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)] pt-[env(safe-area-inset-top)]"}
-        />
-
-        <div className={`z-10 bg-gradient-to-b from-transparent via-slate-300 dark:via-white/10 to-transparent ${isLandscape ? 'w-px h-full bg-gradient-to-b' : 'h-px w-full bg-gradient-to-r md:w-px md:h-full md:bg-gradient-to-b'}`} />
-
-        <ScoreCard
-          teamId={rightTeamId}
-          teamName={rightTeamId === 'A' ? state.teamAName : state.teamBName}
-          score={rightTeamId === 'A' ? state.scoreA : state.scoreB}
-          opponentScore={rightTeamId === 'A' ? state.scoreB : state.scoreA} 
-          setsWon={rightTeamId === 'A' ? state.setsA : state.setsB}
-          maxSets={state.config.maxSets}
-          setsToWinMatch={SETS_TO_WIN_MATCH(state.config.maxSets)}
-          onAdd={() => addPoint(rightTeamId)}
-          onSubtract={() => subtractPoint(rightTeamId)}
-          onToggleService={toggleService}
-          onUseTimeout={() => useTimeout(rightTeamId)}
-          isWinner={state.matchWinner === rightTeamId}
-          inSuddenDeath={state.inSuddenDeath}
-          isServing={state.servingTeam === rightTeamId}
-          timeoutsUsed={rightTeamId === 'A' ? state.timeoutsA : state.timeoutsB}
-          pointsToWinSet={targetPoints}
-          lang={lang}
-          isLandscape={isLandscape}
-          isFullscreen={isFullscreen}
-          className={isLandscape 
-            ? "pr-[env(safe-area-inset-right)] py-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]" 
-            : "pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)] pb-[env(safe-area-inset-bottom)]"}
-        />
-      </main>
-
-      {/* Controles (Escondido em Fullscreen) */}
-      {!isFullscreen && (
-        <div className="pb-[env(safe-area-inset-bottom)] pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)]">
-          <Controls 
-            onUndo={undo}
-            onReset={() => resetMatch()}
-            onSwap={toggleSides}
-            onSettings={() => setIsSettingsOpen(true)}
-            onFullscreen={toggleFullscreenMode}
-            onInstall={handleInstallClick}
-            canInstall={isInstallable}
-            canUndo={canUndo}
+            setsToWinMatch={SETS_TO_WIN_MATCH(state.config.maxSets)}
+            onAdd={() => addPoint(leftTeamId)}
+            onSubtract={() => subtractPoint(leftTeamId)}
+            onToggleService={toggleService}
+            onUseTimeout={() => useTimeout(leftTeamId)}
+            isWinner={state.matchWinner === leftTeamId}
+            inSuddenDeath={state.inSuddenDeath}
+            isServing={state.servingTeam === leftTeamId}
+            timeoutsUsed={leftTeamId === 'A' ? state.timeoutsA : state.timeoutsB}
+            pointsToWinSet={targetPoints}
             lang={lang}
             isLandscape={isLandscape}
-            visible={true}
+            isFullscreen={isFullscreen}
+            className={isLandscape 
+              ? "pl-[env(safe-area-inset-left)] py-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]" 
+              : "pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)] pt-[env(safe-area-inset-top)]"}
           />
-        </div>
-      )}
 
-      {/* Botão de Sair do Fullscreen */}
-      <AnimatePresence>
-        {isFullscreen && (
-          <motion.button
-            initial={{ scale: 0, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            exit={{ scale: 0, opacity: 0 }}
-            onClick={exitFullscreenMode}
-            className="fixed bottom-6 right-6 z-50 w-16 h-16 bg-black/20 dark:bg-white/5 backdrop-blur-md text-white/50 hover:text-white rounded-full flex items-center justify-center border border-white/10 shadow-lg mb-[env(safe-area-inset-bottom)] mr-[env(safe-area-inset-right)]"
-          >
-            <Minimize size={32} />
-          </motion.button>
+          {/* Separador com efeito vidro */}
+          <div className={`z-10 bg-white/10 dark:bg-white/5 backdrop-blur-sm ${isLandscape ? 'w-px h-full' : 'h-px w-full md:w-px md:h-full'}`} />
+
+          <ScoreCard
+            teamId={rightTeamId}
+            teamName={rightTeamId === 'A' ? state.teamAName : state.teamBName}
+            score={rightTeamId === 'A' ? state.scoreA : state.scoreB}
+            opponentScore={rightTeamId === 'A' ? state.scoreB : state.scoreA} 
+            setsWon={rightTeamId === 'A' ? state.setsA : state.setsB}
+            maxSets={state.config.maxSets}
+            setsToWinMatch={SETS_TO_WIN_MATCH(state.config.maxSets)}
+            onAdd={() => addPoint(rightTeamId)}
+            onSubtract={() => subtractPoint(rightTeamId)}
+            onToggleService={toggleService}
+            onUseTimeout={() => useTimeout(rightTeamId)}
+            isWinner={state.matchWinner === rightTeamId}
+            inSuddenDeath={state.inSuddenDeath}
+            isServing={state.servingTeam === rightTeamId}
+            timeoutsUsed={rightTeamId === 'A' ? state.timeoutsA : state.timeoutsB}
+            pointsToWinSet={targetPoints}
+            lang={lang}
+            isLandscape={isLandscape}
+            isFullscreen={isFullscreen}
+            className={isLandscape 
+              ? "pr-[env(safe-area-inset-right)] py-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]" 
+              : "pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)] pb-[env(safe-area-inset-bottom)]"}
+          />
+        </main>
+
+        {!isFullscreen && (
+          <div className="pb-[env(safe-area-inset-bottom)] pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)] w-full z-50">
+            <Controls 
+              onUndo={undo}
+              onReset={() => resetMatch()}
+              onSwap={toggleSides}
+              onSettings={() => setIsSettingsOpen(true)}
+              onFullscreen={toggleFullscreenMode}
+              onInstall={handleInstallClick}
+              canInstall={isInstallable}
+              canUndo={canUndo}
+              lang={lang}
+              isLandscape={isLandscape}
+              visible={true}
+            />
+          </div>
         )}
-      </AnimatePresence>
 
-      {/* Modais com Carregamento Lazy */}
+        <AnimatePresence>
+          {isFullscreen && (
+            <motion.button
+              initial={{ scale: 0, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0, opacity: 0 }}
+              onClick={exitFullscreenMode}
+              className="fixed bottom-6 right-6 z-50 w-16 h-16 bg-black/20 dark:bg-white/5 backdrop-blur-md text-white/50 hover:text-white rounded-full flex items-center justify-center border border-white/10 shadow-lg mb-[env(safe-area-inset-bottom)] mr-[env(safe-area-inset-right)]"
+            >
+              <Minimize size={32} />
+            </motion.button>
+          )}
+        </AnimatePresence>
+
+      </div> {/* Fim Container Maximo */}
+
       <Suspense fallback={null}>
         <MatchOverModal 
           winner={state.matchWinner}
