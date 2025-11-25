@@ -12,7 +12,7 @@ import { HistoryBar } from './components/HistoryBar';
 const MatchOverModal = React.lazy(() => import('./components/MatchOverModal').then(module => ({ default: module.MatchOverModal })));
 const SettingsModal = React.lazy(() => import('./components/SettingsModal').then(module => ({ default: module.SettingsModal })));
 const InstallInstructionsModal = React.lazy(() => import('./components/InstallInstructionsModal').then(module => ({ default: module.InstallInstructionsModal })));
-const WelcomeInstallModal = React.lazy(() => import('./components/WelcomeInstallModal').then(module => ({ default: module.WelcomeInstallModal }))); 
+const WelcomeInstallModal = React.lazy(() => import('./components/WelcomeInstallModal').then(module => ({ default: module.WelcomeInstallModal })));
 
 import { TeamId, Language, ThemeMode } from './types';
 import { SETS_TO_WIN_MATCH, t } from './constants';
@@ -38,10 +38,11 @@ export default function App() {
     // Só mostra se ainda não tiver visto (verifica localStorage)
     const hasSeenWelcome = localStorage.getItem('vs_welcome_tutorial_seen');
     if (!hasSeenWelcome) {
-      // Delay de 2.5s para não ser intrusivo logo de cara
+      // MUDANÇA AQUI: Reduzido de 2500ms para 500ms (0.5 segundos)
+      // Aparece quase imediatamente, evitando interrupções
       const timer = setTimeout(() => {
         setShowWelcome(true);
-      }, 2500);
+      }, 500);
       return () => clearTimeout(timer);
     }
   }, []);
@@ -227,7 +228,6 @@ export default function App() {
         </div>
       )}
 
-      {/* Botão de Minimizar */}
       <AnimatePresence>
         {isFullscreen && (
           <motion.button
