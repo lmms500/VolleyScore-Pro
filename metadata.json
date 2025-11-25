@@ -1,0 +1,5 @@
+{
+  "name": "VolleyScore Pro",
+  "description": "A minimalist, mobile-first professional volleyball scoreboard with intuitive gestures, automatic set logic, and detailed match history.",
+  "requestFramePermissions": []
+}
