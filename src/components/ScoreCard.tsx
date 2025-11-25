@@ -48,7 +48,7 @@ const ScoreCardComponent: React.FC<ScoreCardProps> = ({
   const upOpacity = useTransform(y, [-20, -dragThreshold], [0, 1]);
   const upScale = useTransform(y, [-20, -dragThreshold], [0.8, 1.2]);
   const downOpacity = useTransform(y, [20, dragThreshold], [0, 1]);
-  const downScale = useTransform(y, [20, dragThreshold], [0.8, 1.2]);
+  const downScale = useTransform(y, [20, dragThreshold], [0, 1]);
 
   const triggerHaptic = (pattern: number | number[] = 15) => {
     if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(pattern);
@@ -65,13 +65,11 @@ const ScoreCardComponent: React.FC<ScoreCardProps> = ({
     exit: (dir: number) => ({ y: dir > 0 ? -80 : 80, opacity: 0, scale: 1.1, position: 'absolute' as const })
   };
 
-  // AJUSTE FINO NO TAMANHO DA FONTE (Reduzi levemente todos os tamanhos)
+  // Tamanhos de fonte
   const getFontSize = () => {
     if (isFullscreen) {
-      // Tela Cheia: Paisagem (13rem) / Retrato (10rem)
       return isLandscape ? 'text-[13rem] md:text-[18rem]' : 'text-[10rem] md:text-[14rem]';
     }
-    // Normal: Paisagem (5rem) / Retrato (9rem)
     return isLandscape ? 'text-[5rem]' : 'text-[9rem] md:text-[12rem]';
   };
 
@@ -137,13 +135,13 @@ const ScoreCardComponent: React.FC<ScoreCardProps> = ({
         onTap={() => { if (!isDragging.current) { triggerHaptic(); onAdd(); } }}
         whileTap={{ scale: 0.98 }}
       >
-        {/* NOME DO TIME */}
+        {/* NOME DO TIME (Travado no Topo) */}
         <div 
             className={`
                 flex items-center gap-2 rounded-full border px-4 py-1.5 transition-all duration-300 z-30
                 ${isServing ? 'bg-white/60 dark:bg-white/10 border-white/20 backdrop-blur-md shadow-lg shadow-black/5' : 'border-transparent'} 
                 ${isLandscape 
-                    ? 'absolute top-[12%] left-1/2 -translate-x-1/2' // AJUSTE: Subi de 15% para 12%
+                    ? 'absolute top-[12%] left-1/2 -translate-x-1/2' 
                     : 'mb-4 relative'
                 }
             `}
@@ -171,9 +169,17 @@ const ScoreCardComponent: React.FC<ScoreCardProps> = ({
             </AnimatePresence>
         </div>
 
-        {/* BADGES (Set Point / Match Point) */}
-        {/* AJUSTE: Reduzi mt-2 para mt-0 ou mt-1 no landscape para subir os badges */}
-        <div className={`h-8 flex items-center justify-center gap-2 ${isLandscape ? 'mt-0' : 'mt-4'}`}>
+        {/* BADGES (Travado na Base) */}
+        {/* CORREÇÃO AQUI: z-30 e position absolute em landscape */}
+        <div 
+            className={`
+                flex items-center justify-center gap-2 z-30 transition-all duration-300
+                ${isLandscape 
+                    ? 'absolute bottom-[12%] left-1/2 -translate-x-1/2' // Fixo na base
+                    : 'mt-4 h-8 relative' // Normal
+                }
+            `}
+        >
             <AnimatePresence>
                 {inSuddenDeath && <motion.div initial={{ scale: 0, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0, opacity: 0 }} className="flex items-center gap-1.5 px-3 py-1.5 bg-yellow-500 text-white rounded-full shadow-lg"><Zap size={12} fill="currentColor" /><span className="text-[10px] font-bold tracking-wider uppercase">{t(lang, 'firstTo3')}</span></motion.div>}
                 {isMatchPoint && <motion.div initial={{ scale: 0, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0, opacity: 0 }} className="px-4 py-1.5 bg-gradient-to-r from-red-500 to-rose-600 text-white rounded-full shadow-lg animate-pulse border border-rose-400"><span className="text-[11px] font-black tracking-widest uppercase">{t(lang, 'matchPoint')}</span></motion.div>}
