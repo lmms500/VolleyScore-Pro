@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { RefreshCcw, ArrowLeftRight, RotateCcw, Check, X, Settings, Maximize, Download } from 'lucide-react';
+import { RefreshCcw, ArrowLeftRight, RotateCcw, Check, X, Settings, Maximize, Download, RefreshCw } from 'lucide-react'; // Adicionei RefreshCw
 import { motion, AnimatePresence } from 'framer-motion';
 import { Language } from '../types';
 
@@ -120,6 +120,15 @@ const ControlsComponent: React.FC<ControlsProps> = ({
         {/* Configurações */}
         <button onClick={onSettings} className={btnClass} aria-label="Settings">
             <Settings size={iconSize} />
+        </button>
+
+        {/* Recarregar Página (NOVO) */}
+        <button 
+            onClick={() => window.location.reload()} 
+            className={btnClass}
+            aria-label="Refresh Page"
+        >
+            <RefreshCw size={iconSize} />
         </button>
         
         {/* Tela Cheia */}
