@@ -121,7 +121,8 @@ export const ScoreCard: React.FC<ScoreCardProps> = ({
       {/* INTERACTION AREA */}
       <motion.div
         style={{ y }}
-        className="z-10 w-full h-full flex flex-col items-center justify-center outline-none touch-action-none cursor-pointer pt-6 md:pt-0"
+        /* CORREÇÃO AQUI: Adicionado 'relative' para que os filhos absolutos respeitem este container (que já tem o padding correto) */
+        className="relative z-10 w-full h-full flex flex-col items-center justify-center outline-none touch-action-none cursor-pointer pt-6 md:pt-0"
         drag="y" dragConstraints={{ top: 0, bottom: 0 }} dragElastic={0.15}
         onDragStart={() => { isDragging.current = true; }}
         onDragEnd={(e, { offset }) => {
@@ -132,15 +133,16 @@ export const ScoreCard: React.FC<ScoreCardProps> = ({
         onTap={() => { if (!isDragging.current) { triggerHaptic(); onAdd(); } }}
         whileTap={{ scale: 0.98 }}
       >
-        {/* NOME DO TIME (Posicionamento Corrigido) */}
+        {/* NOME DO TIME */}
         <div 
             className={`
-                relative flex items-center gap-2 rounded-full border px-4 py-1.5 transition-all duration-300 z-30
+                flex items-center gap-2 rounded-full border px-4 py-1.5 transition-all duration-300 z-30
                 ${isServing ? 'bg-white/60 dark:bg-white/10 border-white/20 backdrop-blur-md shadow-lg shadow-black/5' : 'border-transparent'} 
                 ${isLandscape 
-                    /* MUDANÇA: Agora usamos mt-[env(safe-area)] para empurrar o nome para baixo do notch, 
-                       mas mantemos top-0 para garantir que ele fique no topo do container */
-                    ? 'absolute top-0 left-1/2 -translate-x-1/2 mt-[calc(env(safe-area-inset-top)+0.5rem)]' 
+                    /* Agora usamos 'absolute top-0'. Como o pai é 'relative', o top-0 é o topo da área segura.
+                       left-1/2 centraliza perfeitamente no container.
+                    */
+                    ? 'absolute top-0 left-1/2 -translate-x-1/2' 
                     : 'mb-4 relative'
                 }
             `}
@@ -168,6 +170,7 @@ export const ScoreCard: React.FC<ScoreCardProps> = ({
             </AnimatePresence>
         </div>
 
+        {/* BADGES */}
         <div className={`h-8 flex items-center justify-center gap-2 ${isLandscape ? 'mt-2' : 'mt-4'}`}>
             <AnimatePresence>
                 {inSuddenDeath && <motion.div initial={{ scale: 0, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0, opacity: 0 }} className="flex items-center gap-1.5 px-3 py-1.5 bg-yellow-500 text-white rounded-full shadow-lg"><Zap size={12} fill="currentColor" /><span className="text-[10px] font-bold tracking-wider uppercase">{t(lang, 'firstTo3')}</span></motion.div>}
