@@ -23,14 +23,15 @@ interface ScoreCardProps {
   pointsToWinSet: number;
   lang: Language;
   isLandscape: boolean;
-  isFullscreen?: boolean; // NOVA PROP
+  isFullscreen?: boolean;
+  className?: string; // NOVA PROP
 }
 
 export const ScoreCard: React.FC<ScoreCardProps> = ({
   teamId, teamName, score, opponentScore, setsWon, maxSets, setsToWinMatch,
   isWinner, inSuddenDeath, isServing, timeoutsUsed,
   onAdd, onSubtract, onToggleService, onUseTimeout,
-  pointsToWinSet, lang, isLandscape, isFullscreen
+  pointsToWinSet, lang, isLandscape, isFullscreen, className
 }) => {
   const theme = THEME[teamId];
   const y = useMotionValue(0);
@@ -64,14 +65,14 @@ export const ScoreCard: React.FC<ScoreCardProps> = ({
     exit: (dir: number) => ({ y: dir > 0 ? -80 : 80, opacity: 0, scale: 1.1, position: 'absolute' as const })
   };
 
-  // TAMANHO DA FONTE DINÂMICO
   const getFontSize = () => {
     if (isFullscreen) return isLandscape ? 'text-[15rem] md:text-[20rem]' : 'text-[12rem] md:text-[16rem]';
     return isLandscape ? 'text-[6rem]' : 'text-[10rem] md:text-[14rem]';
   };
 
   return (
-    <div className={`relative flex-1 h-full flex flex-col items-center justify-center p-2 transition-all duration-500 overflow-hidden ${theme.bgGradient}`}>
+    // APLICAMOS O className AQUI NO CONTAINER PRINCIPAL
+    <div className={`relative flex-1 h-full flex flex-col items-center justify-center p-2 transition-all duration-500 overflow-hidden ${theme.bgGradient} ${className || ''}`}>
       
       <AnimatePresence>
         {isServing && (
@@ -96,7 +97,7 @@ export const ScoreCard: React.FC<ScoreCardProps> = ({
           </motion.div>
       </div>
 
-      {/* HEADER (Sets, Service) - Mantém visível mas discreto em fullscreen */}
+      {/* HEADER */}
       <div className={`absolute w-full px-4 md:px-6 flex items-start justify-between z-20 ${isFullscreen ? 'top-6' : 'top-2 md:top-4'}`}>
         <div className="flex flex-col gap-1">
              <span className={`text-[10px] font-bold uppercase tracking-widest opacity-60 ${theme.text}`}>Sets</span>

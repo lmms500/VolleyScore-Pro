@@ -3,7 +3,7 @@ import { useVolleyGame } from './hooks/useVolleyGame';
 import { useWakeLock } from './hooks/useWakeLock';
 import { useSound } from './hooks/useSound';
 import { usePWAInstall } from './hooks/usePWAInstall';
-import { useOrientation } from './hooks/useOrientation'; // NOVO HOOK
+import { useOrientation } from './hooks/useOrientation';
 import { ScoreCard } from './components/ScoreCard';
 import { Controls } from './components/Controls';
 import { HistoryBar } from './components/HistoryBar';
@@ -23,20 +23,16 @@ export default function App() {
 
   useWakeLock();
   
-  // Orientação Automática
   const isLandscape = useOrientation();
 
-  // PWA & Install
   const { isInstallable, install, isIOS } = usePWAInstall();
   const [showIOSInstructions, setShowIOSInstructions] = useState(false);
   const handleInstallClick = () => isIOS ? setShowIOSInstructions(true) : install();
   
-  // Sound
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [lang, setLang] = useState<Language>('pt'); 
   const { speak, playBeep } = useSound(lang, soundEnabled);
   
-  // Audio Refs
   const prevScoreA = useRef(0);
   const prevScoreB = useRef(0);
   const prevSet = useRef(1);
@@ -71,7 +67,6 @@ export default function App() {
     prevSet.current = state.currentSet;
   }, [state.scoreA, state.scoreB, state.currentSet, isLoaded, lang, playBeep, speak, state.teamAName, state.teamBName, state.history]);
   
-  // UI State
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [themeMode, setThemeMode] = useState<ThemeMode>('dark');
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -109,11 +104,11 @@ export default function App() {
   const targetPoints = state.inSuddenDeath ? 3 : (useTieBreak ? state.config.tieBreakPoints : state.config.pointsPerSet);
 
   return (
-    <div className="h-[100dvh] w-full flex flex-col bg-slate-50 dark:bg-[#020617] transition-colors duration-300 relative overflow-hidden pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)]">
+    // REMOVI O PADDING DO CONTAINER PRINCIPAL
+    <div className="h-[100dvh] w-full flex flex-col bg-slate-50 dark:bg-[#020617] transition-colors duration-300 relative overflow-hidden">
       
-      {/* Botão de Som - Só mostra se NÃO estiver em fullscreen */}
       {!isFullscreen && (
-        <div className="absolute top-3 right-3 z-[60] mt-[env(safe-area-inset-top)]">
+        <div className="absolute top-3 right-3 z-[60] mt-[env(safe-area-inset-top)] mr-[env(safe-area-inset-right)]">
             <button 
               onClick={() => setSoundEnabled(!soundEnabled)} 
               className="p-2.5 bg-white/10 dark:bg-white/5 backdrop-blur-md rounded-full text-slate-500 dark:text-slate-400 border border-black/5 dark:border-white/10 shadow-sm hover:bg-white/20 active:scale-95 transition-all"
@@ -123,21 +118,22 @@ export default function App() {
         </div>
       )}
 
-      {/* History Bar - REMOVIDO do DOM se fullscreen */}
+      {/* Wrappers para HistoryBar e Controls com padding de safe area */}
       {!isFullscreen && (
-        <HistoryBar 
-          history={state.history} 
-          currentSet={state.currentSet}
-          swapped={state.swappedSides}
-          lang={lang}
-          maxSets={state.config.maxSets}
-          matchDurationSeconds={state.matchDurationSeconds}
-          isTimerRunning={state.isTimerRunning}
-          visible={true}
-        />
+        <div className="pt-[env(safe-area-inset-top)] pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)]">
+          <HistoryBar 
+            history={state.history} 
+            currentSet={state.currentSet}
+            swapped={state.swappedSides}
+            lang={lang}
+            maxSets={state.config.maxSets}
+            matchDurationSeconds={state.matchDurationSeconds}
+            isTimerRunning={state.isTimerRunning}
+            visible={true}
+          />
+        </div>
       )}
 
-      {/* Main Area */}
       <main className={`flex-1 flex md:flex-row relative overflow-hidden ${isLandscape ? 'flex-row' : 'flex-col'} ${isFullscreen ? 'p-0' : ''}`}>
         <ScoreCard
           teamId={leftTeamId}
@@ -158,7 +154,11 @@ export default function App() {
           pointsToWinSet={targetPoints}
           lang={lang}
           isLandscape={isLandscape}
-          isFullscreen={isFullscreen} // NOVA PROP
+          isFullscreen={isFullscreen}
+          // CLASSE DINÂMICA: Esquerda ganha padding esquerda. Em portrait (vertical), ganha os dois.
+          className={isLandscape 
+            ? "pl-[env(safe-area-inset-left)] py-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]" 
+            : "pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)] pt-[env(safe-area-inset-top)]"}
         />
 
         <div className={`z-10 bg-gradient-to-b from-transparent via-slate-300 dark:via-white/10 to-transparent ${isLandscape ? 'w-px h-full bg-gradient-to-b' : 'h-px w-full bg-gradient-to-r md:w-px md:h-full md:bg-gradient-to-b'}`} />
@@ -182,29 +182,32 @@ export default function App() {
           pointsToWinSet={targetPoints}
           lang={lang}
           isLandscape={isLandscape}
-          isFullscreen={isFullscreen} // NOVA PROP
+          isFullscreen={isFullscreen}
+          // CLASSE DINÂMICA: Direita ganha padding direita. Em portrait (vertical), ganha os dois.
+          className={isLandscape 
+            ? "pr-[env(safe-area-inset-right)] py-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]" 
+            : "pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)] pb-[env(safe-area-inset-bottom)]"}
         />
       </main>
 
-      {/* Controls - REMOVIDO do DOM se fullscreen */}
       {!isFullscreen && (
-        <Controls 
-          onUndo={undo}
-          onReset={() => resetMatch()}
-          onSwap={toggleSides}
-          onSettings={() => setIsSettingsOpen(true)}
-          // onToggleLayout removido pois é automático agora
-          onFullscreen={toggleFullscreenMode}
-          onInstall={handleInstallClick}
-          canInstall={isInstallable}
-          canUndo={canUndo}
-          lang={lang}
-          isLandscape={isLandscape}
-          visible={true}
-        />
+        <div className="pb-[env(safe-area-inset-bottom)] pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)]">
+          <Controls 
+            onUndo={undo}
+            onReset={() => resetMatch()}
+            onSwap={toggleSides}
+            onSettings={() => setIsSettingsOpen(true)}
+            onFullscreen={toggleFullscreenMode}
+            onInstall={handleInstallClick}
+            canInstall={isInstallable}
+            canUndo={canUndo}
+            lang={lang}
+            isLandscape={isLandscape}
+            visible={true}
+          />
+        </div>
       )}
 
-      {/* Botão de Sair Fullscreen - Única coisa visível além do placar */}
       <AnimatePresence>
         {isFullscreen && (
           <motion.button
