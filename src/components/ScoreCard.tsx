@@ -121,7 +121,6 @@ export const ScoreCard: React.FC<ScoreCardProps> = ({
       {/* INTERACTION AREA */}
       <motion.div
         style={{ y }}
-        /* CORREÇÃO AQUI: Adicionado 'relative' para que os filhos absolutos respeitem este container (que já tem o padding correto) */
         className="relative z-10 w-full h-full flex flex-col items-center justify-center outline-none touch-action-none cursor-pointer pt-6 md:pt-0"
         drag="y" dragConstraints={{ top: 0, bottom: 0 }} dragElastic={0.15}
         onDragStart={() => { isDragging.current = true; }}
@@ -133,16 +132,13 @@ export const ScoreCard: React.FC<ScoreCardProps> = ({
         onTap={() => { if (!isDragging.current) { triggerHaptic(); onAdd(); } }}
         whileTap={{ scale: 0.98 }}
       >
-        {/* NOME DO TIME */}
+        {/* NOME DO TIME - Ajustado para descer (top-[15%]) */}
         <div 
             className={`
                 flex items-center gap-2 rounded-full border px-4 py-1.5 transition-all duration-300 z-30
                 ${isServing ? 'bg-white/60 dark:bg-white/10 border-white/20 backdrop-blur-md shadow-lg shadow-black/5' : 'border-transparent'} 
                 ${isLandscape 
-                    /* Agora usamos 'absolute top-0'. Como o pai é 'relative', o top-0 é o topo da área segura.
-                       left-1/2 centraliza perfeitamente no container.
-                    */
-                    ? 'absolute top-0 left-1/2 -translate-x-1/2' 
+                    ? 'absolute top-[15%] left-1/2 -translate-x-1/2' // Desce para 15% da altura
                     : 'mb-4 relative'
                 }
             `}
@@ -153,8 +149,8 @@ export const ScoreCard: React.FC<ScoreCardProps> = ({
            </span>
         </div>
         
-        {/* SCORE NUMBER */}
-        <div className={`relative w-full flex items-center justify-center ${isLandscape ? 'h-auto mt-0' : 'h-48 md:h-64'}`}>
+        {/* SCORE NUMBER - Ajustado para descer também (mt-[10%]) */}
+        <div className={`relative w-full flex items-center justify-center ${isLandscape ? 'h-auto mt-[10%]' : 'h-48 md:h-64'}`}>
             <AnimatePresence mode="popLayout" initial={false} custom={direction}>
                 <motion.span
                     key={score}
