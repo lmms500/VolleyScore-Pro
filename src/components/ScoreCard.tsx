@@ -24,7 +24,7 @@ interface ScoreCardProps {
   lang: Language;
   isLandscape: boolean;
   isFullscreen?: boolean;
-  className?: string; // NOVA PROP
+  className?: string;
 }
 
 export const ScoreCard: React.FC<ScoreCardProps> = ({
@@ -71,7 +71,6 @@ export const ScoreCard: React.FC<ScoreCardProps> = ({
   };
 
   return (
-    // APLICAMOS O className AQUI NO CONTAINER PRINCIPAL
     <div className={`relative flex-1 h-full flex flex-col items-center justify-center p-2 transition-all duration-500 overflow-hidden ${theme.bgGradient} ${className || ''}`}>
       
       <AnimatePresence>
@@ -87,7 +86,7 @@ export const ScoreCard: React.FC<ScoreCardProps> = ({
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="absolute inset-0 bg-black/10 dark:bg-white/5 backdrop-blur-[1px] pointer-events-none z-0" />
       )}
 
-      {/* Feedback Icons */}
+      {/* Visual Feedback Icons */}
       <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-0">
           <motion.div style={{ opacity: upOpacity, scale: upScale, y: -feedbackDistance }} className="absolute w-16 h-16 rounded-full bg-emerald-500/90 text-white shadow-2xl flex items-center justify-center backdrop-blur-md border border-white/20">
             <Plus size={32} strokeWidth={3} />
@@ -97,7 +96,7 @@ export const ScoreCard: React.FC<ScoreCardProps> = ({
           </motion.div>
       </div>
 
-      {/* HEADER */}
+      {/* TOP HEADER (Sets, Service) */}
       <div className={`absolute w-full px-4 md:px-6 flex items-start justify-between z-20 ${isFullscreen ? 'top-6' : 'top-2 md:top-4'}`}>
         <div className="flex flex-col gap-1">
              <span className={`text-[10px] font-bold uppercase tracking-widest opacity-60 ${theme.text}`}>Sets</span>
@@ -119,7 +118,7 @@ export const ScoreCard: React.FC<ScoreCardProps> = ({
         </div>
       </div>
 
-      {/* SCORE AREA */}
+      {/* INTERACTION AREA */}
       <motion.div
         style={{ y }}
         className="z-10 w-full h-full flex flex-col items-center justify-center outline-none touch-action-none cursor-pointer pt-6 md:pt-0"
@@ -133,14 +132,26 @@ export const ScoreCard: React.FC<ScoreCardProps> = ({
         onTap={() => { if (!isDragging.current) { triggerHaptic(); onAdd(); } }}
         whileTap={{ scale: 0.98 }}
       >
-        <div className={`relative px-4 py-1.5 rounded-full border flex items-center gap-2 ${isServing ? 'bg-white/60 dark:bg-white/10 border-white/20 backdrop-blur-md shadow-lg shadow-black/5' : 'border-transparent'} transition-all duration-300 ${isLandscape ? 'mb-0' : 'mb-4'}`}>
+        {/* CORREÇÃO AQUI: z-20 para garantir prioridade visual */}
+        {/* Se for paisagem (Landscape), ele vira absoluto no topo para não empurrar o número */}
+        <div 
+            className={`
+                relative flex items-center gap-2 rounded-full border px-4 py-1.5 transition-all duration-300 z-20
+                ${isServing ? 'bg-white/60 dark:bg-white/10 border-white/20 backdrop-blur-md shadow-lg shadow-black/5' : 'border-transparent'} 
+                ${isLandscape 
+                    ? 'absolute top-[16%] left-1/2 -translate-x-1/2 mb-0' // Paisagem: Flutua no topo
+                    : 'mb-4 relative' // Retrato: Segue o fluxo normal
+                }
+            `}
+        >
            {isServing && <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} className={`${theme.text}`}><Volleyball size={18} fill="currentColor" className="opacity-20" /></motion.div>}
            <span className={`font-bold tracking-wider uppercase ${theme.text} ${isFullscreen ? 'text-xl md:text-2xl' : (isLandscape ? 'text-sm' : 'text-lg md:text-xl')} truncate max-w-[250px] text-center`}>
              {displayName}
            </span>
         </div>
         
-        <div className={`relative w-full flex items-center justify-center ${isLandscape ? 'h-auto' : 'h-48 md:h-64'}`}>
+        {/* O número agora pode crescer livremente */}
+        <div className={`relative w-full flex items-center justify-center ${isLandscape ? 'h-auto mt-0' : 'h-48 md:h-64'}`}>
             <AnimatePresence mode="popLayout" initial={false} custom={direction}>
                 <motion.span
                     key={score}
@@ -156,7 +167,7 @@ export const ScoreCard: React.FC<ScoreCardProps> = ({
             </AnimatePresence>
         </div>
 
-        <div className={`h-8 flex items-center justify-center gap-2 ${isLandscape ? 'mt-1' : 'mt-4'}`}>
+        <div className={`h-8 flex items-center justify-center gap-2 ${isLandscape ? 'mt-2' : 'mt-4'}`}>
             <AnimatePresence>
                 {inSuddenDeath && <motion.div initial={{ scale: 0, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0, opacity: 0 }} className="flex items-center gap-1.5 px-3 py-1.5 bg-yellow-500 text-white rounded-full shadow-lg"><Zap size={12} fill="currentColor" /><span className="text-[10px] font-bold tracking-wider uppercase">{t(lang, 'firstTo3')}</span></motion.div>}
                 {isMatchPoint && <motion.div initial={{ scale: 0, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0, opacity: 0 }} className="px-4 py-1.5 bg-gradient-to-r from-red-500 to-rose-600 text-white rounded-full shadow-lg animate-pulse border border-rose-400"><span className="text-[11px] font-black tracking-widest uppercase">{t(lang, 'matchPoint')}</span></motion.div>}
