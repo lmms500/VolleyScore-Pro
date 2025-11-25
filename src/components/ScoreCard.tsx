@@ -48,7 +48,7 @@ const ScoreCardComponent: React.FC<ScoreCardProps> = ({
   const upOpacity = useTransform(y, [-20, -dragThreshold], [0, 1]);
   const upScale = useTransform(y, [-20, -dragThreshold], [0.8, 1.2]);
   const downOpacity = useTransform(y, [20, dragThreshold], [0, 1]);
-  const downScale = useTransform(y, [20, dragThreshold], [0, 1]);
+  const downScale = useTransform(y, [20, dragThreshold], [0.8, 1.2]);
 
   const triggerHaptic = (pattern: number | number[] = 15) => {
     if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(pattern);
@@ -65,7 +65,6 @@ const ScoreCardComponent: React.FC<ScoreCardProps> = ({
     exit: (dir: number) => ({ y: dir > 0 ? -80 : 80, opacity: 0, scale: 1.1, position: 'absolute' as const })
   };
 
-  // Tamanhos de fonte
   const getFontSize = () => {
     if (isFullscreen) {
       return isLandscape ? 'text-[13rem] md:text-[18rem]' : 'text-[10rem] md:text-[14rem]';
@@ -135,7 +134,7 @@ const ScoreCardComponent: React.FC<ScoreCardProps> = ({
         onTap={() => { if (!isDragging.current) { triggerHaptic(); onAdd(); } }}
         whileTap={{ scale: 0.98 }}
       >
-        {/* NOME DO TIME (Travado no Topo) */}
+        {/* NOME DO TIME (Top 12%) */}
         <div 
             className={`
                 flex items-center gap-2 rounded-full border px-4 py-1.5 transition-all duration-300 z-30
@@ -152,8 +151,8 @@ const ScoreCardComponent: React.FC<ScoreCardProps> = ({
            </span>
         </div>
         
-        {/* SCORE NUMBER */}
-        <div className={`relative w-full flex items-center justify-center ${isLandscape ? 'h-auto mt-[10%]' : 'h-48 md:h-64'}`}>
+        {/* SCORE NUMBER (Centralizado - mt-0 no landscape) */}
+        <div className={`relative w-full flex items-center justify-center ${isLandscape ? 'h-auto mt-0' : 'h-48 md:h-64'}`}>
             <AnimatePresence mode="popLayout" initial={false} custom={direction}>
                 <motion.span
                     key={score}
@@ -169,14 +168,13 @@ const ScoreCardComponent: React.FC<ScoreCardProps> = ({
             </AnimatePresence>
         </div>
 
-        {/* BADGES (Travado na Base) */}
-        {/* CORREÇÃO AQUI: z-30 e position absolute em landscape */}
+        {/* BADGES (Bottom 12%) */}
         <div 
             className={`
                 flex items-center justify-center gap-2 z-30 transition-all duration-300
                 ${isLandscape 
-                    ? 'absolute bottom-[12%] left-1/2 -translate-x-1/2' // Fixo na base
-                    : 'mt-4 h-8 relative' // Normal
+                    ? 'absolute bottom-[12%] left-1/2 -translate-x-1/2' 
+                    : 'mt-4 h-8 relative'
                 }
             `}
         >
