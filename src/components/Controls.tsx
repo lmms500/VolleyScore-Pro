@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { RefreshCcw, ArrowLeftRight, RotateCcw, Check, X, Settings, Smartphone, Maximize, Download } from 'lucide-react';
+import { RefreshCcw, ArrowLeftRight, RotateCcw, Check, X, Settings, Maximize, Download } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Language } from '../types';
 
@@ -8,10 +8,9 @@ interface ControlsProps {
   onReset: () => void;
   onSwap: () => void;
   onSettings: () => void;
-  onToggleLayout: () => void;
   onFullscreen: () => void;
-  onInstall: () => void;    // Nova prop
-  canInstall: boolean;      // Nova prop
+  onInstall: () => void;
+  canInstall: boolean;
   canUndo: boolean;
   lang: Language;
   isLandscape: boolean;
@@ -19,11 +18,21 @@ interface ControlsProps {
 }
 
 export const Controls: React.FC<ControlsProps> = ({ 
-    onUndo, onReset, onSwap, onSettings, onToggleLayout, onFullscreen,
-    onInstall, canInstall, // Recebendo novas props
-    canUndo, lang, isLandscape, visible
+    onUndo, 
+    onReset, 
+    onSwap, 
+    onSettings, 
+    onFullscreen,
+    onInstall,
+    canInstall,
+    canUndo, 
+    lang, 
+    isLandscape,
+    visible
 }) => {
   const [confirmReset, setConfirmReset] = useState(false);
+
+  // Estilo base dos botões (Dock Style)
   const btnClass = "relative flex items-center justify-center w-12 h-12 rounded-2xl text-slate-500 dark:text-slate-400 transition-all active:scale-90 hover:bg-slate-100 dark:hover:bg-white/10 hover:text-slate-900 dark:hover:text-white";
   const iconSize = 22;
 
@@ -36,22 +45,15 @@ export const Controls: React.FC<ControlsProps> = ({
     >
       <div className="bg-white/80 dark:bg-[#1e293b]/80 backdrop-blur-2xl border border-white/50 dark:border-white/10 shadow-2xl shadow-black/10 rounded-[2rem] p-1.5 flex items-center gap-1 pointer-events-auto ring-1 ring-black/5">
       
-         {/* Swap */}
+         {/* Trocar Lados */}
         <button onClick={onSwap} className={btnClass} aria-label="Swap Sides">
             <ArrowLeftRight size={iconSize} />
         </button>
 
-         {/* Rotate */}
-         <button 
-            onClick={onToggleLayout}
-            className={`${btnClass} ${isLandscape ? 'text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-500/10' : ''}`}
-        >
-            <Smartphone size={iconSize} className={isLandscape ? 'rotate-90' : ''} style={{ transition: 'transform 0.3s ease' }} />
-        </button>
-
+        {/* Divisor */}
         <div className="w-px h-6 bg-slate-300 dark:bg-white/10 mx-1 rounded-full"></div>
 
-        {/* Reset */}
+        {/* Lógica de Reset (com confirmação) */}
         <div className="relative">
         <AnimatePresence mode="wait">
           {!confirmReset ? (
@@ -62,6 +64,7 @@ export const Controls: React.FC<ControlsProps> = ({
               exit={{ opacity: 0, scale: 0.5 }}
               onClick={() => setConfirmReset(true)}
               className={btnClass}
+              aria-label="Reset Match"
             >
               <RefreshCcw size={iconSize} />
             </motion.button>
@@ -90,31 +93,36 @@ export const Controls: React.FC<ControlsProps> = ({
         </AnimatePresence>
         </div>
 
-        {/* Undo */}
+        {/* Desfazer */}
         <button 
             onClick={onUndo}
             disabled={!canUndo}
             className={`${btnClass} ${!canUndo ? 'opacity-30 cursor-not-allowed' : ''}`}
+            aria-label="Undo"
         >
             <RotateCcw size={iconSize} />
         </button>
 
         <div className="w-px h-6 bg-slate-300 dark:bg-white/10 mx-1 rounded-full"></div>
 
-        {/* Install Button (Novo) - Só aparece se instalável */}
+        {/* Instalar App (Só aparece se disponível) */}
         {canInstall && (
-             <button onClick={onInstall} className={`${btnClass} text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-500/10`}>
+             <button 
+                onClick={onInstall} 
+                className={`${btnClass} text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-500/10 hover:bg-emerald-100 dark:hover:bg-emerald-500/20`}
+                aria-label="Install App"
+            >
                 <Download size={iconSize} />
             </button>
         )}
 
-        {/* Settings */}
-        <button onClick={onSettings} className={btnClass}>
+        {/* Configurações */}
+        <button onClick={onSettings} className={btnClass} aria-label="Settings">
             <Settings size={iconSize} />
         </button>
         
-        {/* Fullscreen */}
-        <button onClick={onFullscreen} className={btnClass}>
+        {/* Tela Cheia */}
+        <button onClick={onFullscreen} className={btnClass} aria-label="Fullscreen">
             <Maximize size={iconSize} />
         </button>
 
