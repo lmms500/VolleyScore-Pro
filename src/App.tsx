@@ -4,11 +4,13 @@ import { useWakeLock } from './hooks/useWakeLock';
 import { useSound } from './hooks/useSound';
 import { usePWAInstall } from './hooks/usePWAInstall';
 import { useOrientation } from './hooks/useOrientation';
+import { useServiceWorker } from './hooks/useServiceWorker'; // Novo Hook de Update
 import { ScoreCard } from './components/ScoreCard';
 import { Controls } from './components/Controls';
 import { HistoryBar } from './components/HistoryBar';
+import { UpdateToast } from './components/UpdateToast'; // Novo Componente de Aviso
 
-// Lazy Load dos Modais
+// Lazy Load dos Modais (Carregamento sob demanda para performance)
 const MatchOverModal = React.lazy(() => import('./components/MatchOverModal').then(module => ({ default: module.MatchOverModal })));
 const SettingsModal = React.lazy(() => import('./components/SettingsModal').then(module => ({ default: module.SettingsModal })));
 const InstallInstructionsModal = React.lazy(() => import('./components/InstallInstructionsModal').then(module => ({ default: module.InstallInstructionsModal })));
@@ -20,6 +22,7 @@ import { Minimize, Volume2, VolumeX } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
 
 export default function App() {
+  // 1. Hooks Principais
   const {
     state, matchDurationSeconds, isLoaded, addPoint, subtractPoint, undo, resetMatch,
     toggleSides, toggleService, useTimeout, applySettings, setTeamNames, canUndo
@@ -28,18 +31,19 @@ export default function App() {
   useWakeLock();
   const isLandscape = useOrientation();
   
-  // PWA & Instalação
+  // 2. Sistema de Atualização (Service Worker)
+  const { showReload, reloadPage } = useServiceWorker();
+
+  // 3. Instalação PWA
   const { isInstallable, install, isIOS } = usePWAInstall();
   const [showIOSInstructions, setShowIOSInstructions] = useState(false);
   const [showWelcome, setShowWelcome] = useState(false);
 
-  // Efeito para verificar primeira visita
+  // Lógica de Boas-vindas (Tutorial)
   useEffect(() => {
-    // Só mostra se ainda não tiver visto (verifica localStorage)
     const hasSeenWelcome = localStorage.getItem('vs_welcome_tutorial_seen');
     if (!hasSeenWelcome) {
-      // MUDANÇA AQUI: Reduzido de 2500ms para 500ms (0.5 segundos)
-      // Aparece quase imediatamente, evitando interrupções
+      // Delay curto (0.5s) para não interromper a abertura do app
       const timer = setTimeout(() => {
         setShowWelcome(true);
       }, 500);
@@ -51,15 +55,16 @@ export default function App() {
   
   const handleWelcomeInstall = () => {
     setShowWelcome(false);
-    localStorage.setItem('vs_welcome_tutorial_seen', 'true'); // Marca como visto
+    localStorage.setItem('vs_welcome_tutorial_seen', 'true');
     handleInstallClick();
   };
 
   const handleWelcomeClose = () => {
     setShowWelcome(false);
-    localStorage.setItem('vs_welcome_tutorial_seen', 'true'); // Marca como visto para não mostrar de novo
+    localStorage.setItem('vs_welcome_tutorial_seen', 'true');
   };
 
+  // 4. Áudio e Feedback
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [lang, setLang] = useState<Language>('pt'); 
   const { speak, playBeep } = useSound(lang, soundEnabled);
@@ -68,9 +73,9 @@ export default function App() {
   const prevScoreB = useRef(0);
   const prevSet = useRef(1);
 
-  // Efeitos de Som
   useEffect(() => {
     if (!isLoaded) return;
+    // Som de Ponto
     if (state.scoreA > prevScoreA.current || state.scoreB > prevScoreB.current) {
       playBeep(600, 50);
       const scoringTeam = state.scoreA > prevScoreA.current ? 'A' : 'B';
@@ -79,6 +84,7 @@ export default function App() {
       const teamName = (scoringTeam === 'A' ? state.teamAName : state.teamBName) || defaultName;
       setTimeout(() => { speak(`${t(lang, 'point')} ${teamName}`); }, 100);
     }
+    // Som de Fim de Set
     if (state.currentSet > prevSet.current) {
         const lastSet = state.history[state.history.length - 1];
         if (lastSet) {
@@ -91,6 +97,7 @@ export default function App() {
     prevSet.current = state.currentSet;
   }, [state.scoreA, state.scoreB, state.currentSet, isLoaded, lang, playBeep, speak, state.teamAName, state.teamBName, state.history]);
   
+  // 5. UI e Temas
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [themeMode, setThemeMode] = useState<ThemeMode>('dark');
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -130,6 +137,10 @@ export default function App() {
   return (
     <div className="h-[100dvh] w-full flex flex-col bg-slate-50 dark:bg-[#020617] transition-colors duration-300 relative overflow-hidden">
       
+      {/* Toast de Atualização Automática */}
+      <UpdateToast show={showReload} onReload={reloadPage} />
+
+      {/* Botão de Som (Escondido em Fullscreen) */}
       {!isFullscreen && (
         <div className="absolute top-3 right-3 z-[60] mt-[env(safe-area-inset-top)] mr-[env(safe-area-inset-right)]">
             <button 
@@ -141,6 +152,7 @@ export default function App() {
         </div>
       )}
 
+      {/* Barra de Histórico */}
       {!isFullscreen && (
         <div className="pt-[env(safe-area-inset-top)] pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)]">
           <HistoryBar 
@@ -156,6 +168,7 @@ export default function App() {
         </div>
       )}
 
+      {/* Área Principal de Pontuação */}
       <main className={`flex-1 flex md:flex-row relative overflow-hidden ${isLandscape ? 'flex-row' : 'flex-col'} ${isFullscreen ? 'p-0' : ''}`}>
         <ScoreCard
           teamId={leftTeamId}
@@ -210,6 +223,7 @@ export default function App() {
         />
       </main>
 
+      {/* Controles (Escondido em Fullscreen) */}
       {!isFullscreen && (
         <div className="pb-[env(safe-area-inset-bottom)] pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)]">
           <Controls 
@@ -228,6 +242,7 @@ export default function App() {
         </div>
       )}
 
+      {/* Botão de Sair do Fullscreen */}
       <AnimatePresence>
         {isFullscreen && (
           <motion.button
@@ -242,6 +257,7 @@ export default function App() {
         )}
       </AnimatePresence>
 
+      {/* Modais com Carregamento Lazy */}
       <Suspense fallback={null}>
         <MatchOverModal 
           winner={state.matchWinner}
@@ -278,7 +294,6 @@ export default function App() {
           )}
         </AnimatePresence>
 
-        {/* Modal de Boas Vindas e Tutorial */}
         <AnimatePresence>
           {showWelcome && (
               <WelcomeInstallModal 

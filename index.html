@@ -21,15 +21,5 @@
   <body class="bg-slate-50 dark:bg-[#020617] text-slate-900 dark:text-slate-50 overflow-hidden h-[100dvh] w-screen select-none transition-colors duration-300 font-sans">
     <div id="root" class="h-full w-full"></div>
     <script type="module" src="/src/index.tsx"></script>
-
-    <script>
-      if ('serviceWorker' in navigator) {
-        window.addEventListener('load', () => {
-          navigator.serviceWorker.register('/service-worker.js')
-            .then(reg => console.log('SW registrado!', reg.scope))
-            .catch(err => console.log('Falha no SW:', err));
-        });
-      }
-    </script>
   </body>
 </html>
