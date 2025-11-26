@@ -77,7 +77,7 @@ export const useVolleyGame = () => {
     return () => clearInterval(interval);
   }, [state.isTimerRunning]);
 
-  // Rotation Report Logic (Apenas Visual agora)
+  // Rotation Report Logic
   useEffect(() => {
     if (state.isMatchOver && !state.rotationReport && state.matchWinner && state.queue.length > 0) {
         const winnerId = state.matchWinner;
@@ -101,7 +101,6 @@ export const useVolleyGame = () => {
             if (state.queue.length >= 2) {
                 const donorTeam = state.queue[1];
                 donorName = donorTeam.name;
-                // AQUI TAMBÉM FILTRAMOS PARA O RELATÓRIO FICAR COERENTE
                 const availableToSteal = donorTeam.players.filter(p => !p.isFixed);
                 const stealCount = Math.min(neededPlayers, availableToSteal.length);
 
@@ -114,7 +113,6 @@ export const useVolleyGame = () => {
                 const stealCount = Math.min(neededPlayers, availableToSteal.length);
                 if (stealCount > 0) {
                     const stolen = availableToSteal.slice(availableToSteal.length - stealCount);
-                    // Removendo os roubados da lista de quem vai pra fila (visual)
                     const stolenIds = new Set(stolen.map(p => p.id));
                     const remainingLeaving = leavingPlayersFromCourt.filter(p => !stolenIds.has(p.id));
                     
@@ -159,21 +157,42 @@ export const useVolleyGame = () => {
     });
   }, []);
 
-  const resetMatch = useCallback((newConfig?: GameConfig) => {
-    const configToUse = newConfig || state.config;
-    const newState = { 
-      ...INITIAL_STATE, 
-      teamAName: state.teamAName,
-      teamBName: state.teamBName,
-      teamARoster: state.teamARoster,
-      teamBRoster: state.teamBRoster,
-      queue: state.queue,
-      swappedSides: state.swappedSides,
-      config: configToUse 
-    };
-    setHistoryStack([newState]);
-    setState(newState);
-  }, [state.config, state.swappedSides, state.teamAName, state.teamBName, state.teamARoster, state.teamBRoster, state.queue]);
+  // --- REFACTORED RESET MATCH COM LÓGICA CONDICIONAL E NEWNAMES ---
+  const resetMatch = useCallback((newConfig?: GameConfig, newNames?: { nameA: string, nameB: string }) => {
+    setState((prevState) => {
+      const configToUse = newConfig || prevState.config;
+      
+      let stateToPreserve: Partial<GameState> = { 
+          // 1. Nomes sempre atualizados (por newNames ou mantidos por prevState)
+          teamAName: newNames?.nameA || prevState.teamAName,
+          teamBName: newNames?.nameB || prevState.teamBName,
+          
+          swappedSides: prevState.swappedSides,
+          config: configToUse,
+          // MUDANÇA: Preservar Rosters e Queue incondicionalmente
+          teamARoster: prevState.teamARoster,
+          teamBRoster: prevState.teamBRoster,
+          queue: prevState.queue,
+      };
+      
+      // REMOVIDO: O bloco 'if (!newConfig)' não é mais necessário aqui.
+      
+      const newState: GameState = { 
+        ...INITIAL_STATE, // Zera scores, sets, isMatchOver, rotationReport, timeouts, etc.
+        ...stateToPreserve // Sobrescreve apenas o que deve ser mantido (incluindo rosters)
+      };
+      
+      setHistoryStack([newState]);
+      
+      // 3. Se um novo nome foi fornecido, também atualiza o roster com o novo nome
+      if (newNames) {
+        if (newState.teamARoster) newState.teamARoster.name = newNames.nameA;
+        if (newState.teamBRoster) newState.teamBRoster.name = newNames.nameB;
+      }
+
+      return newState;
+    });
+  }, []);
 
   const generateTeams = useCallback((
       namesText: string, 
@@ -350,7 +369,7 @@ export const useVolleyGame = () => {
       updateState(newState);
   }, [state, updateState]);
 
-  // --- ROTATE TEAMS (FRESH CALCULATION) ---
+  // --- ROTATE TEAMS ---
   const rotateTeams = useCallback(() => {
     if (!state.matchWinner || state.queue.length === 0) return;
 
@@ -386,17 +405,13 @@ export const useVolleyGame = () => {
         if (remainingQueue.length > 0) {
             // Rouba do Doador (Queue[1])
             const donorTeam = remainingQueue[0];
-            
-            // CORREÇÃO: Só rouba quem NÃO está com cadeado
             const availableToSteal = donorTeam.players.filter(p => !p.isFixed);
             const stealCount = Math.min(neededPlayers, availableToSteal.length);
 
             if (stealCount > 0) {
-                // Pega os últimos da lista de disponíveis
                 const playersToSteal = availableToSteal.slice(availableToSteal.length - stealCount);
                 stolenPlayers = playersToSteal;
 
-                // Remove do doador (usando ID para garantir)
                 const stolenIds = new Set(playersToSteal.map(p => p.id));
                 donorTeam.players = donorTeam.players.filter(p => !stolenIds.has(p.id));
             }
@@ -407,8 +422,7 @@ export const useVolleyGame = () => {
             remainingQueue = [donor, newLoserRoster, ...others];
 
         } else {
-            // Rouba do Perdedor (leavingPlayersFromCourt)
-            // CORREÇÃO: Só rouba quem NÃO está com cadeado
+            // Rouba do Perdedor
             const availableToSteal = leavingPlayersFromCourt.filter(p => !p.isFixed);
             const stealCount = Math.min(neededPlayers, availableToSteal.length);
             
@@ -416,7 +430,6 @@ export const useVolleyGame = () => {
                 const playersToSteal = availableToSteal.slice(availableToSteal.length - stealCount);
                 stolenPlayers = playersToSteal;
                 
-                // Remove de quem vai pra fila
                 const stolenIds = new Set(playersToSteal.map(p => p.id));
                 goingToQueue = goingToQueue.filter(p => !stolenIds.has(p.id));
             }
@@ -470,19 +483,9 @@ export const useVolleyGame = () => {
       updateState(newState);
   }, [state, updateState]);
 
-  const setTeamNames = useCallback((nameA: string, nameB: string) => {
-    const newState = {
-      ...state,
-      teamAName: nameA,
-      teamBName: nameB,
-      teamARoster: state.teamARoster ? { ...state.teamARoster, name: nameA } : state.teamARoster,
-      teamBRoster: state.teamBRoster ? { ...state.teamBRoster, name: nameB } : state.teamBRoster
-    };
-    updateState(newState);
-  }, [state, updateState]);
-
-  const applySettings = useCallback((newConfig: GameConfig) => {
-    resetMatch(newConfig);
+  // Apply Settings agora aceita a config E os nomes
+  const applySettings = useCallback((newConfig: GameConfig, newNames: { nameA: string, nameB: string }) => {
+    resetMatch(newConfig, newNames);
   }, [resetMatch]);
 
   const addPoint = useCallback((team: TeamId) => {
@@ -549,7 +552,6 @@ export const useVolleyGame = () => {
     toggleService,
     useTimeout,
     applySettings,
-    setTeamNames,
     canUndo: historyStack.length > 1,
     generateTeams,
     updateRosters,

@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Users, Lock, Unlock, Shuffle, Trash2, Edit3, Hand, RotateCcw } from 'lucide-react';
+import { X, Users, Lock, Unlock, Shuffle, Trash2, Edit3, Hand, RotateCcw, Check } from 'lucide-react';
 import { Team, Language } from '../types';
 import { t } from '../constants';
 
@@ -310,8 +310,9 @@ export const TeamManagerModal: React.FC<TeamManagerModalProps> = ({
         <div className="p-5 border-t border-slate-200 dark:border-white/5 bg-slate-50 dark:bg-slate-950/50">
              <button
                 onClick={onClose}
-                className="w-full py-3 bg-slate-900 dark:bg-white text-white dark:text-slate-950 font-bold rounded-xl active:scale-95 transition-transform hover:opacity-90 shadow-lg"
+                className="w-full py-3 bg-slate-900 dark:bg-white text-white dark:text-slate-950 font-bold rounded-xl active:scale-95 transition-transform hover:opacity-90 shadow-lg flex items-center justify-center gap-2"
             >
+                <Check size={20} />
                 {t(lang, 'save')}
             </button>
         </div>

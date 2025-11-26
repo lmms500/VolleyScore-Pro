@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Settings, X, Check, Info, Moon, Sun, Languages, Users, BookOpen, Zap, Trophy, LayoutTemplate } from 'lucide-react';
+import { Settings, X, Check, Info, Moon, Sun, Languages, Users, BookOpen, Zap, Trophy, LayoutTemplate, Loader2 } from 'lucide-react';
 import { GameConfig, Language, ThemeMode } from '../types';
 import { t } from '../constants';
 
@@ -17,7 +17,7 @@ const OptionButton: React.FC<OptionButtonProps> = ({
 }) => (
   <button
     onClick={onClick}
-    className={`py-3 rounded-xl font-bold text-sm transition-all border flex items-center justify-center gap-2 ${
+    className={`py-3 rounded-xl font-bold text-sm transition-all border flex items-center justify-center gap-2 cursor-pointer touch-manipulation active:scale-95 ${
       active
         ? 'bg-indigo-600 border-indigo-500 text-white shadow-lg shadow-indigo-500/20'
         : 'bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-white/5 text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'
@@ -33,8 +33,8 @@ interface SettingsModalProps {
   teamBName: string;
   isOpen: boolean;
   onClose: () => void;
-  onSave: (config: GameConfig) => void;
-  onSaveNames: (nameA: string, nameB: string) => void;
+  // NOVO: onSave unificado para passar Configuração e Nomes
+  onSave: (config: GameConfig, nameA: string, nameB: string) => void;
   lang: Language;
   setLang: (l: Language) => void;
   themeMode: ThemeMode;
@@ -48,7 +48,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   isOpen, 
   onClose, 
   onSave,
-  onSaveNames,
   lang,
   setLang,
   themeMode,
@@ -59,21 +58,39 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const [nameB, setNameB] = useState(teamBName);
   const [showRuleInfo, setShowRuleInfo] = useState(false);
   const [showOfficialRules, setShowOfficialRules] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
       setConfig(currentConfig);
       setNameA(teamAName);
       setNameB(teamBName);
+      setIsSaving(false);
     }
   }, [isOpen, currentConfig, teamAName, teamBName]);
 
   if (!isOpen) return null;
 
-  const handleSave = () => {
-    onSave(config);
-    onSaveNames(nameA, nameB);
-    onClose();
+  const handleSave = (e: React.MouseEvent) => {
+    // Prevenção de eventos fantasmas e propagação
+    e.preventDefault();
+    e.stopPropagation();
+    
+    // Feedback visual imediato
+    setIsSaving(true);
+    
+    // Feedback tátil
+    if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(20);
+
+    // CÓDIGO REVERTIDO PARA ASSÍNCRONO: Mantendo o bug da race condition do cliente, mas corrigindo a chamada
+    setTimeout(() => {
+        // CHAMADA UNIFICADA: Passa config, nome A e nome B
+        onSave(config, nameA, nameB);
+        
+        // Finaliza o estado de loading e fecha
+        setIsSaving(false);
+        onClose();
+    }, 150); 
   };
 
   const currentSetsToWin = Math.ceil(config.maxSets / 2);
@@ -100,26 +117,29 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 h-[100dvh] w-screen touch-none">
       <motion.div 
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
         exit={{ opacity: 0, scale: 0.95 }}
-        className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-3xl w-full max-w-sm overflow-hidden shadow-2xl flex flex-col max-h-[90vh]"
+        className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-3xl w-full max-w-sm overflow-hidden shadow-2xl flex flex-col max-h-[85dvh]"
+        onClick={(e) => e.stopPropagation()}
       >
-        <div className="p-6 border-b border-slate-200 dark:border-white/5 flex justify-between items-center bg-white dark:bg-slate-900 sticky top-0 z-10">
+        {/* HEADER */}
+        <div className="flex-none p-6 border-b border-slate-200 dark:border-white/5 flex justify-between items-center bg-white dark:bg-slate-900 z-10">
           <div className="flex items-center gap-3">
             <div className="p-2 bg-slate-100 dark:bg-slate-800 rounded-lg text-slate-500 dark:text-slate-300">
                 <Settings size={20} />
             </div>
             <h2 className="text-slate-900 dark:text-white text-xl font-bold">{t(lang, 'settingsTitle')}</h2>
           </div>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-900 dark:hover:text-white">
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-900 dark:hover:text-white p-2 rounded-full hover:bg-slate-100 dark:hover:bg-white/5">
             <X size={24} />
           </button>
         </div>
 
-        <div className="p-6 space-y-8 overflow-y-auto custom-scrollbar">
+        {/* CONTENT */}
+        <div className="flex-1 min-h-0 p-6 space-y-8 overflow-y-auto custom-scrollbar overscroll-contain touch-pan-y">
           
           {/* Presets */}
           <div>
@@ -130,7 +150,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             <div className="grid grid-cols-2 gap-3">
                 <button
                     onClick={() => applyPreset('monday')}
-                    className={`py-3 px-3 rounded-xl font-bold text-xs flex flex-col items-center justify-center gap-2 border transition-all ${
+                    className={`py-3 px-3 rounded-xl font-bold text-xs flex flex-col items-center justify-center gap-2 border transition-all cursor-pointer ${
                         config.maxSets === 1 && config.pointsPerSet === 15 && config.deuceType === 'sudden_death_3pt'
                         ? 'bg-rose-50 dark:bg-rose-900/20 border-rose-500 text-rose-600 dark:text-rose-400 ring-1 ring-rose-500'
                         : 'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-white/5 text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700'
@@ -142,7 +162,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
                 <button
                     onClick={() => applyPreset('official')}
-                    className={`py-3 px-3 rounded-xl font-bold text-xs flex flex-col items-center justify-center gap-2 border transition-all ${
+                    className={`py-3 px-3 rounded-xl font-bold text-xs flex flex-col items-center justify-center gap-2 border transition-all cursor-pointer ${
                         config.maxSets === 5 && config.pointsPerSet === 25 && config.deuceType === 'standard'
                         ? 'bg-indigo-50 dark:bg-indigo-900/20 border-indigo-500 text-indigo-600 dark:text-indigo-400 ring-1 ring-indigo-500'
                         : 'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-white/5 text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700'
@@ -223,7 +243,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             <div className="grid grid-cols-2 gap-3">
               <button 
                 onClick={() => setLang(lang === 'en' ? 'pt' : 'en')}
-                className="py-3 px-4 rounded-xl font-bold text-sm bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 flex items-center justify-center gap-2 border border-slate-200 dark:border-white/5"
+                className="py-3 px-4 rounded-xl font-bold text-sm bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 flex items-center justify-center gap-2 border border-slate-200 dark:border-white/5 cursor-pointer"
               >
                 <Languages size={16} />
                 <span>{lang === 'en' ? 'English' : 'Português'}</span>
@@ -231,7 +251,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
               <button 
                 onClick={() => setThemeMode(themeMode === 'light' ? 'dark' : 'light')}
-                className="py-3 px-4 rounded-xl font-bold text-sm bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 flex items-center justify-center gap-2 border border-slate-200 dark:border-white/5"
+                className="py-3 px-4 rounded-xl font-bold text-sm bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 flex items-center justify-center gap-2 border border-slate-200 dark:border-white/5 cursor-pointer"
               >
                 {themeMode === 'light' ? <Sun size={16} /> : <Moon size={16} />}
                 <span>{themeMode === 'light' ? 'Light' : 'Dark'}</span>
@@ -293,7 +313,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             <div className="mb-3 flex items-center gap-3">
                 <button 
                   onClick={() => setConfig({ ...config, hasTieBreak: !config.hasTieBreak })}
-                  className={`relative w-12 h-7 rounded-full transition-colors duration-200 ${
+                  className={`relative w-12 h-7 rounded-full transition-colors duration-200 cursor-pointer ${
                     config.hasTieBreak ? 'bg-indigo-600' : 'bg-slate-300 dark:bg-slate-700'
                   }`}
                 >
@@ -356,7 +376,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             <div className="flex flex-col gap-2">
               <button
                 onClick={() => setConfig({ ...config, deuceType: 'standard' })}
-                className={`w-full py-3 px-4 rounded-xl font-bold text-sm transition-all border flex justify-between items-center ${
+                className={`w-full py-3 px-4 rounded-xl font-bold text-sm transition-all border flex justify-between items-center cursor-pointer ${
                   config.deuceType === 'standard'
                     ? 'bg-indigo-600 border-indigo-500 text-white shadow-lg shadow-indigo-500/20'
                     : 'bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-white/5 text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'
@@ -368,7 +388,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
               <button
                 onClick={() => setConfig({ ...config, deuceType: 'sudden_death_3pt' })}
-                className={`w-full py-3 px-4 rounded-xl font-bold text-sm transition-all border flex justify-between items-center ${
+                className={`w-full py-3 px-4 rounded-xl font-bold text-sm transition-all border flex justify-between items-center cursor-pointer ${
                   config.deuceType === 'sudden_death_3pt'
                     ? 'bg-rose-600 border-rose-500 text-white shadow-lg shadow-rose-500/20'
                     : 'bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-white/5 text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'
@@ -382,13 +402,19 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
         </div>
 
-        <div className="p-6 bg-slate-50/50 dark:bg-slate-950/50 border-t border-slate-200 dark:border-white/5 sticky bottom-0">
+        {/* FOOTER */}
+        <div className="flex-none p-6 pb-8 md:pb-6 bg-slate-50/90 dark:bg-slate-950/90 backdrop-blur-md border-t border-slate-200 dark:border-white/5 z-20">
           <button
             onClick={handleSave}
-            className="w-full py-4 flex items-center justify-center gap-2 bg-slate-900 dark:bg-white text-white dark:text-slate-950 font-bold rounded-xl active:scale-95 transition-transform hover:opacity-90"
+            disabled={isSaving}
+            className={`w-full py-4 flex items-center justify-center gap-2 font-bold rounded-xl transition-all shadow-lg active:scale-[0.98] ${
+                isSaving 
+                ? 'bg-indigo-600 text-white cursor-wait opacity-80'
+                : 'bg-slate-900 dark:bg-white text-white dark:text-slate-950 hover:opacity-90'
+            }`}
           >
-            <Check size={20} />
-            <span>{t(lang, 'save')}</span>
+            {isSaving ? <Loader2 size={20} className="animate-spin" /> : <Check size={20} />}
+            <span>{isSaving ? t(lang, 'saveAndReset') + '...' : t(lang, 'saveAndReset')}</span>
           </button>
         </div>
       </motion.div>

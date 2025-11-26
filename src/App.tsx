@@ -23,7 +23,6 @@ export default function App() {
     toggleService,
     useTimeout,
     applySettings,
-    setTeamNames,
     canUndo,
     generateTeams,
     updateRosters,
@@ -160,7 +159,7 @@ export default function App() {
       <AnimatePresence>
         {!isFullscreen && (
           <>
-            {/* Top Bar Container - Adicionado pt-[safe-area] para respeitar notch */}
+            {/* Top Bar Container */}
             <div className="absolute top-0 left-0 right-0 z-50 pointer-events-none pt-[env(safe-area-inset-top)]">
               <div className="pointer-events-auto">
                 <HistoryBar 
@@ -175,7 +174,7 @@ export default function App() {
               </div>
             </div>
 
-            {/* Bottom Controls Container - Adicionado pb-[safe-area] para respeitar home indicator */}
+            {/* Bottom Controls Container */}
             <div className="absolute bottom-0 left-0 right-0 z-50 pointer-events-none pb-[env(safe-area-inset-bottom)]">
                <div className="pointer-events-auto">
                 <Controls 
@@ -230,8 +229,9 @@ export default function App() {
         teamAName={state.teamAName}
         teamBName={state.teamBName}
         onClose={() => setIsSettingsOpen(false)}
-        onSave={applySettings}
-        onSaveNames={setTeamNames}
+        onSave={(newConfig, nameA, nameB) => {
+          applySettings(newConfig, { nameA, nameB });
+        }}
         lang={lang}
         setLang={setLang}
         themeMode={themeMode}

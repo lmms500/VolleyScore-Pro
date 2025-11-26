@@ -67,7 +67,8 @@ export const TRANSLATIONS = {
     deuceInfoReset: 'Reset: If score ties at set point (e.g., 24-24), scores reset to 0-0. First team to 3 wins.',
     officialRulesTitle: 'Official Volleyball Rules',
     officialRulesText: 'To win a set, a team must reach 25 points with at least a 2-point lead. If the score is 24-24, play continues until a 2-point lead is achieved. The deciding 5th set (Tie-break) is played to 15 points, also requiring a 2-point lead. The match is won by the first team to win 3 sets.',
-    save: 'Save & New Match',
+    save: 'Save', // Chave "save" atualizada para ser apenas salvar.
+    saveAndReset: 'Save & New Match', // NOVA CHAVE para Salvar e Reiniciar (Configurações)
     cancel: 'Cancel',
     language: 'Language',
     theme: 'Theme',
@@ -141,7 +142,8 @@ export const TRANSLATIONS = {
     deuceInfoReset: 'Reset: Se empatar no set point (ex: 24-24), o placar zera (0-0). Ganha quem fizer 3 pontos primeiro.',
     officialRulesTitle: 'Regras Oficiais (Resumo)',
     officialRulesText: 'Para vencer um set, a equipe deve alcançar 25 pontos com minímo de 2 pontos de vantagem (ex: 26-24). O Tie-break (5º set) vai a 15 pontos, também com vantagem de 2. Vence a partida quem ganhar o número de sets estipulado (geralmente 3). Sistema "Rally Point": Ponto direto em toda jogada.',
-    save: 'Salvar e Reiniciar',
+    save: 'Salvar', // Chave "save" atualizada para ser apenas salvar.
+    saveAndReset: 'Salvar e Reiniciar', // NOVA CHAVE para Salvar e Reiniciar (Configurações)
     cancel: 'Cancelar',
     language: 'Idioma',
     theme: 'Tema',
