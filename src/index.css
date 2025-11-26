@@ -2,29 +2,50 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Previne comportamento de elástico no iOS */
-body {
-  overscroll-behavior-y: contain;
-  -webkit-tap-highlight-color: transparent;
-  font-feature-settings: "tnum"; /* Ativa números tabulares na fonte Inter */
-  font-variant-numeric: tabular-nums;
+@layer base {
+  html {
+    /* Garante que a altura seja exata e proíbe scroll no html */
+    height: 100dvh;
+    width: 100%;
+    overflow: hidden;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  body {
+    /* Força o corpo a ocupar exatamente o espaço visível */
+    height: 100dvh;
+    width: 100%;
+    overflow: hidden;
+    
+    /* CRUCIAL: Remove o efeito elástico (bounce) que causa cortes no iOS */
+    overscroll-behavior: none;
+    position: fixed; /* Trava extra para evitar scroll indesejado */
+    inset: 0;
+  }
+
+  #root {
+    height: 100%;
+    width: 100%;
+    isolation: isolate;
+  }
 }
 
-/* Utilitários */
-.no-scrollbar::-webkit-scrollbar { display: none; }
-.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+/* Utilitário para esconder barras de rolagem mas manter funcionalidade */
+@layer utilities {
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
 
-.mask-gradient-right {
-  mask-image: linear-gradient(to right, black 85%, transparent 100%);
-  -webkit-mask-image: linear-gradient(to right, black 85%, transparent 100%);
-}
-
-/* Fundo Animado Sutil */
-@keyframes subtle-pulse {
-  0%, 100% { opacity: 0.4; }
-  50% { opacity: 0.6; }
-}
-
-.animate-subtle-pulse {
-  animation: subtle-pulse 4s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  /* Máscaras de gradiente para listas */
+  .mask-gradient-right {
+    mask-image: linear-gradient(to right, black 85%, transparent 100%);
+  }
+  
+  .mask-gradient-y {
+    mask-image: linear-gradient(to bottom, transparent, black 15%, black 85%, transparent);
+  }
 }

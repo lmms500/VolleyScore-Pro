@@ -160,7 +160,8 @@ export default function App() {
       <AnimatePresence>
         {!isFullscreen && (
           <>
-            <div className="absolute top-0 left-0 right-0 z-50 pointer-events-none">
+            {/* Top Bar Container - Adicionado pt-[safe-area] para respeitar notch */}
+            <div className="absolute top-0 left-0 right-0 z-50 pointer-events-none pt-[env(safe-area-inset-top)]">
               <div className="pointer-events-auto">
                 <HistoryBar 
                   history={state.history} 
@@ -174,7 +175,8 @@ export default function App() {
               </div>
             </div>
 
-            <div className="absolute bottom-0 left-0 right-0 z-50 pointer-events-none">
+            {/* Bottom Controls Container - Adicionado pb-[safe-area] para respeitar home indicator */}
+            <div className="absolute bottom-0 left-0 right-0 z-50 pointer-events-none pb-[env(safe-area-inset-bottom)]">
                <div className="pointer-events-auto">
                 <Controls 
                   onUndo={undo}
@@ -201,6 +203,7 @@ export default function App() {
             exit={{ scale: 0, opacity: 0 }}
             onClick={exitFullscreenMode}
             className="fixed bottom-6 right-6 z-[60] w-12 h-12 bg-black/40 hover:bg-black/60 text-white/70 hover:text-white rounded-full flex items-center justify-center backdrop-blur-md border border-white/10 shadow-lg transition-all"
+            style={{ marginBottom: 'env(safe-area-inset-bottom)', marginRight: 'env(safe-area-inset-right)' }}
           >
             <Minimize size={20} />
           </motion.button>
