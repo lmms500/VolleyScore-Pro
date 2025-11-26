@@ -42,7 +42,8 @@ const ScoreCardComponent: React.FC<ScoreCardProps> = ({
   useEffect(() => { prevScore.current = score; }, [score]);
   
   const isDragging = useRef(false);
-  const dragThreshold = isLandscape ? 50 : 80;
+  // Aumentei o threshold para evitar toques acidentais
+  const dragThreshold = isLandscape ? 60 : 100;
   const feedbackDistance = isLandscape ? 50 : 80;
 
   const upOpacity = useTransform(y, [-20, -dragThreshold], [0, 1]);
@@ -60,38 +61,44 @@ const ScoreCardComponent: React.FC<ScoreCardProps> = ({
   const isSetPoint = !isMatchPoint && score >= pointsToWinSet - 1 && score > opponentScore;
 
   const scoreVariants = {
-    enter: (dir: number) => ({ y: dir > 0 ? 80 : -80, opacity: 0, scale: 0.9 }),
+    enter: (dir: number) => ({ y: dir > 0 ? 50 : -50, opacity: 0, scale: 0.9 }),
     center: { y: 0, opacity: 1, scale: 1 },
-    exit: (dir: number) => ({ y: dir > 0 ? -80 : 80, opacity: 0, scale: 1.1, position: 'absolute' as const })
+    exit: (dir: number) => ({ y: dir > 0 ? -50 : 50, opacity: 0, scale: 1.1, position: 'absolute' as const })
   };
 
-  // Lógica de Tipografia Responsiva Extrema
+  // Lógica de Tipografia Responsiva
   const getFontSize = () => {
     if (isFullscreen) {
       if (isLandscape) {
-        return score >= 100 ? 'text-[30vh]' : 'text-[35vh]';
+        // Reduzi levemente para garantir que caiba com os nomes
+        return score >= 100 ? 'text-[25vh]' : 'text-[30vh]';
       } else {
-        return 'text-[25vh]'; 
+        return 'text-[22vh]'; 
       }
     }
+    // Modo Normal
     return isLandscape 
-      ? 'text-7xl lg:text-8xl' 
-      : 'text-8xl md:text-9xl lg:text-[10rem]';
+      ? 'text-6xl lg:text-8xl' 
+      : 'text-7xl md:text-8xl lg:text-9xl';
   };
 
-  // Safe Area Logic
-  // Se não estiver em fullscreen, empurramos o header para baixo (top-20) para fugir da HistoryBar
-  // Se estiver em fullscreen, ele sobe (top-6)
-  const topPosition = isFullscreen 
-    ? 'top-6 px-6' 
-    : (isLandscape ? 'top-16 px-4' : 'top-20 px-6');
+  // Safe Area Logic (Padding Dinâmico)
+  // Define o espaçamento vertical para não bater nas barras flutuantes
+  const paddingTop = isFullscreen 
+    ? 'pt-[calc(env(safe-area-inset-top)+20px)]' 
+    : (isLandscape ? 'pt-14' : 'pt-20');
+    
+  const paddingBottom = isFullscreen 
+    ? 'pb-[calc(env(safe-area-inset-bottom)+20px)]' 
+    : 'pb-24';
 
-  // Padding do container principal para não bater nas barras flutuantes
-  const safeAreaPadding = isFullscreen ? '' : 'pt-16 pb-24';
+  // Header Posicionamento (Sets e Timeout ficam absolutos nos cantos, fora do fluxo do nome)
+  const headerTop = isFullscreen ? 'top-4' : 'top-4';
 
   return (
     <div className={`relative flex-1 h-full flex flex-col items-center justify-center p-0 transition-all duration-500 overflow-hidden ${theme.bgGradient} ${className || ''}`}>
       
+      {/* Background Effects */}
       <AnimatePresence>
         {isServing && (
           <motion.div
@@ -105,7 +112,7 @@ const ScoreCardComponent: React.FC<ScoreCardProps> = ({
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="absolute inset-0 bg-black/10 dark:bg-white/5 backdrop-blur-[1px] pointer-events-none z-0" />
       )}
 
-      {/* Feedback Icons */}
+      {/* Feedback Icons (Drag Feedback) */}
       <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-0">
           <motion.div style={{ opacity: upOpacity, scale: upScale, y: -feedbackDistance }} className="absolute w-16 h-16 rounded-full bg-emerald-500/90 text-white shadow-2xl flex items-center justify-center backdrop-blur-md border border-white/20">
             <Plus size={32} strokeWidth={3} />
@@ -115,8 +122,8 @@ const ScoreCardComponent: React.FC<ScoreCardProps> = ({
           </motion.div>
       </div>
 
-      {/* TOP HEADER (Sets & Service) */}
-      <div className={`absolute w-full flex items-start justify-between z-20 transition-all duration-300 ${topPosition}`}>
+      {/* TOP HEADER (Sets & Service Controls - Absolutos para não afetar o layout central) */}
+      <div className={`absolute w-full px-4 md:px-6 flex items-start justify-between z-30 pointer-events-auto transition-all ${headerTop}`}>
         {/* Sets Indicator */}
         <div className="flex flex-col gap-1">
              {!isFullscreen && <span className={`text-[10px] font-bold uppercase tracking-widest opacity-60 ${theme.text}`}>Sets</span>}
@@ -140,10 +147,10 @@ const ScoreCardComponent: React.FC<ScoreCardProps> = ({
         </div>
       </div>
 
-      {/* INTERACTION AREA - SAFE AREA APPLIED HERE */}
+      {/* MAIN INTERACTION AREA - FLEXBOX SANDWICH LAYOUT */}
       <motion.div
         style={{ y }}
-        className={`relative z-10 w-full h-full flex flex-col items-center justify-center outline-none touch-action-none cursor-pointer ${safeAreaPadding}`}
+        className={`relative z-10 w-full h-full flex flex-col justify-between items-center outline-none touch-action-none cursor-pointer ${paddingTop} ${paddingBottom}`}
         drag="y" dragConstraints={{ top: 0, bottom: 0 }} dragElastic={0.15}
         onDragStart={() => { isDragging.current = true; }}
         onDragEnd={(e, { offset }) => {
@@ -154,25 +161,24 @@ const ScoreCardComponent: React.FC<ScoreCardProps> = ({
         onTap={() => { if (!isDragging.current) { triggerHaptic(); onAdd(); } }}
         whileTap={{ scale: 0.98 }}
       >
-        {/* NOME DO TIME */}
-        <div 
-            className={`
-                flex items-center gap-2 rounded-full border px-4 py-1.5 transition-all duration-300 z-30
-                ${isServing ? 'bg-white/60 dark:bg-white/10 border-white/20 backdrop-blur-md shadow-lg shadow-black/5' : 'border-transparent'} 
-                ${isLandscape 
-                    ? (isFullscreen ? 'absolute top-[5%] left-1/2 -translate-x-1/2' : 'absolute top-[15%] left-1/2 -translate-x-1/2') 
-                    : (isFullscreen ? 'mb-0 absolute top-16' : 'mb-4 relative')
-                }
-            `}
-        >
-           {!isFullscreen && isServing && <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} className={`${theme.text}`}><Volleyball size={18} fill="currentColor" className="opacity-20" /></motion.div>}
-           <span className={`font-bold tracking-wider uppercase ${theme.text} ${isFullscreen ? 'text-lg md:text-xl' : (isLandscape ? 'text-sm' : 'text-lg md:text-xl')} truncate max-w-[250px] text-center`}>
-             {displayName}
-           </span>
+        
+        {/* 1. SLOT SUPERIOR: NOME DO TIME (Fixo) */}
+        <div className="flex-none flex justify-center w-full z-20 min-h-[40px]">
+             <div 
+                className={`
+                    flex items-center gap-2 rounded-full border px-4 py-1.5 transition-all duration-300
+                    ${isServing ? 'bg-white/60 dark:bg-white/10 border-white/20 backdrop-blur-md shadow-lg shadow-black/5' : 'border-transparent'} 
+                `}
+            >
+            {!isFullscreen && isServing && <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} className={`${theme.text}`}><Volleyball size={18} fill="currentColor" className="opacity-20" /></motion.div>}
+            <span className={`font-bold tracking-wider uppercase ${theme.text} ${isFullscreen ? 'text-lg md:text-2xl' : 'text-sm md:text-lg'} truncate max-w-[250px] text-center`}>
+                {displayName}
+            </span>
+            </div>
         </div>
         
-        {/* SCORE NUMBER */}
-        <div className={`relative w-full flex items-center justify-center pointer-events-none ${isLandscape ? 'h-auto mt-0' : 'h-auto'}`}>
+        {/* 2. SLOT CENTRAL: PLACAR (Flex Grow) */}
+        <div className="flex-1 flex items-center justify-center w-full relative">
             <AnimatePresence mode="popLayout" initial={false} custom={direction}>
                 <motion.span
                     key={score}
@@ -183,7 +189,7 @@ const ScoreCardComponent: React.FC<ScoreCardProps> = ({
                     className={`leading-none font-black tabular-nums tracking-tighter ${theme.scoreColor} drop-shadow-2xl ${getFontSize()}`}
                     style={{ 
                         textShadow: '0 10px 40px rgba(0,0,0,0.1)',
-                        lineHeight: isFullscreen && isLandscape ? '0.8' : '1'
+                        lineHeight: '0.8' // Line height apertado para evitar que o número ocupe altura vertical demais
                     }}
                 >
                     {score}
@@ -191,22 +197,15 @@ const ScoreCardComponent: React.FC<ScoreCardProps> = ({
             </AnimatePresence>
         </div>
 
-        {/* BADGES */}
-        <div 
-            className={`
-                flex items-center justify-center gap-2 z-30 transition-all duration-300 pointer-events-none
-                ${isLandscape 
-                    ? (isFullscreen ? 'absolute bottom-[5%] left-1/2 -translate-x-1/2' : 'absolute bottom-[15%] left-1/2 -translate-x-1/2')
-                    : (isFullscreen ? 'absolute bottom-16' : 'mt-4 h-8 relative')
-                }
-            `}
-        >
+        {/* 3. SLOT INFERIOR: BADGES (Fixo) */}
+        <div className="flex-none flex justify-center w-full z-20 min-h-[40px]">
             <AnimatePresence>
                 {inSuddenDeath && <motion.div initial={{ scale: 0, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0, opacity: 0 }} className="flex items-center gap-1.5 px-3 py-1.5 bg-yellow-500 text-white rounded-full shadow-lg"><Zap size={12} fill="currentColor" /><span className="text-[10px] font-bold tracking-wider uppercase">{t(lang, 'firstTo3')}</span></motion.div>}
                 {isMatchPoint && <motion.div initial={{ scale: 0, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0, opacity: 0 }} className="px-4 py-1.5 bg-gradient-to-r from-red-500 to-rose-600 text-white rounded-full shadow-lg animate-pulse border border-rose-400"><span className="text-[11px] font-black tracking-widest uppercase">{t(lang, 'matchPoint')}</span></motion.div>}
                 {isSetPoint && <motion.div initial={{ scale: 0, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0, opacity: 0 }} className="px-4 py-1.5 bg-indigo-600 text-white rounded-full shadow-lg border border-indigo-400"><span className="text-[11px] font-black tracking-widest uppercase">{t(lang, 'setPoint')}</span></motion.div>}
             </AnimatePresence>
         </div>
+
       </motion.div>
     </div>
   );
