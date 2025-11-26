@@ -4,27 +4,20 @@ export const DEFAULT_CONFIG: GameConfig = {
   pointsPerSet: 25,
   tieBreakPoints: 15,
   hasTieBreak: true,
-  maxSets: 5, // Best of 5 (First to 3)
+  maxSets: 5, 
   deuceType: 'standard',
 };
 
 export const MIN_LEAD_TO_WIN = 2;
-
-// Calculated based on config, but kept here for reference or utility
 export const SETS_TO_WIN_MATCH = (maxSets: number) => Math.ceil(maxSets / 2);
 
 export const THEME = {
   A: {
-    // Text color for labels/names
     text: 'text-indigo-600 dark:text-indigo-400',
-    // Score number color (High contrast)
     scoreColor: 'text-slate-900 dark:text-white',
-    // Background gradient for the card
     bgGradient: 'bg-gradient-to-br from-indigo-50 to-indigo-100/50 dark:from-indigo-950/30 dark:to-[#020617]',
-    // Accent color for indicators
     accent: 'text-indigo-500',
     accentBg: 'bg-indigo-500',
-    // Glow/Shadow effects
     shadow: 'shadow-indigo-500/20',
     border: 'border-indigo-200 dark:border-indigo-500/10',
     name: 'Home',
@@ -59,7 +52,7 @@ export const TRANSLATIONS = {
     reset: 'RESET',
     undo: 'UNDO',
     sure: 'Sure?',
-    settingsTitle: 'Match Settings',
+    settingsTitle: 'Settings',
     matchType: 'Sets to Win Match',
     setsLabel: 'Sets',
     pointsPerSet: 'Points per Set',
@@ -75,6 +68,7 @@ export const TRANSLATIONS = {
     officialRulesTitle: 'Official Volleyball Rules',
     officialRulesText: 'To win a set, a team must reach 25 points with at least a 2-point lead. If the score is 24-24, play continues until a 2-point lead is achieved. The deciding 5th set (Tie-break) is played to 15 points, also requiring a 2-point lead. The match is won by the first team to win 3 sets.',
     save: 'Save & New Match',
+    cancel: 'Cancel',
     language: 'Language',
     theme: 'Theme',
     firstTo3: 'First to 3',
@@ -83,7 +77,39 @@ export const TRANSLATIONS = {
     matchPoint: 'MATCH POINT',
     setPoint: 'SET POINT',
     timeout: 'TIMEOUT',
-    point: 'Point' // Adicionado
+    point: 'Point',
+    // Team Management
+    rotateTeams: 'Rotate Teams',
+    rotateAndNext: 'Rotate & Next',
+    cantRotate: "Can't rotate without queue.",
+    nextMatch: 'Next Match',
+    leaving: 'Leaving',
+    entering: 'Entering',
+    fixed: 'Fixed (Stayed)',
+    queue: 'From Queue',
+    completedWith: 'Stolen to Complete',
+    generateTeams: 'Generate Teams',
+    playerList: 'Player List',
+    manageTeams: 'Manage Teams',
+    teamManager: 'Team Manager',
+    fullQueue: 'Everyone went to queue.',
+    namesList: 'Enter names (one per line):',
+    namesPlaceholder: 'John Doe\nJane Smith\n...',
+    editList: 'Edit List',
+    clear: 'Clear',
+    waiting: 'Waiting',
+    openSlots: 'open slots',
+    // Settings Presets
+    presets: 'Quick Presets',
+    mondayVolley: 'Monday Volley',
+    officialStandard: 'Official (Standard)',
+    winByTaking: 'Win by taking',
+    setsFirst: 'sets first.',
+    // Copy
+    copy: 'Copy Result',
+    copied: 'Copied!',
+    // Controls
+    reload: 'Reload App'
   },
   pt: {
     home: 'Casa',
@@ -116,6 +142,7 @@ export const TRANSLATIONS = {
     officialRulesTitle: 'Regras Oficiais (Resumo)',
     officialRulesText: 'Para vencer um set, a equipe deve alcançar 25 pontos com minímo de 2 pontos de vantagem (ex: 26-24). O Tie-break (5º set) vai a 15 pontos, também com vantagem de 2. Vence a partida quem ganhar o número de sets estipulado (geralmente 3). Sistema "Rally Point": Ponto direto em toda jogada.',
     save: 'Salvar e Reiniciar',
+    cancel: 'Cancelar',
     language: 'Idioma',
     theme: 'Tema',
     firstTo3: 'Quem fizer 3',
@@ -124,10 +151,42 @@ export const TRANSLATIONS = {
     matchPoint: 'MATCH POINT',
     setPoint: 'SET POINT',
     timeout: 'TEMPO',
-    point: 'Ponto' // Adicionado
+    point: 'Ponto',
+    // Team Management
+    rotateTeams: 'Rodar Times',
+    rotateAndNext: 'Rodar e Próximo',
+    cantRotate: 'Não é possível rodar sem fila.',
+    nextMatch: 'Próxima Partida',
+    leaving: 'Saindo',
+    entering: 'Entrando',
+    fixed: 'Fixos (Ficaram)',
+    queue: 'Da Fila',
+    completedWith: 'Roubados p/ Completar',
+    generateTeams: 'Gerar Times',
+    playerList: 'Lista de Jogadores',
+    manageTeams: 'Gerenciar Times',
+    teamManager: 'Gerenciador de Times',
+    fullQueue: 'Todos foram para a fila.',
+    namesList: 'Insira os nomes (um por linha):',
+    namesPlaceholder: 'João Silva\nMaria Souza\n...',
+    editList: 'Editar Lista',
+    clear: 'Limpar',
+    waiting: 'Aguardando',
+    openSlots: 'vagas',
+    // Settings Presets
+    presets: 'Modos Rápidos',
+    mondayVolley: 'Vôlei de Segunda',
+    officialStandard: 'Oficial (Padrão)',
+    winByTaking: 'Ganha quem vencer',
+    setsFirst: 'sets primeiro.',
+    // Copy
+    copy: 'Copiar Resumo',
+    copied: 'Copiado!',
+    // Controls
+    reload: 'Recarregar App'
   }
 };
 
-export const t = (lang: Language, key: keyof typeof TRANSLATIONS['en']) => {
-  return TRANSLATIONS[lang][key] || key;
+export const t = (lang: Language, key: string) => {
+  return TRANSLATIONS[lang][key as keyof typeof TRANSLATIONS['en']] || key;
 };

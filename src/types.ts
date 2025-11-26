@@ -10,16 +10,45 @@ export interface SetHistory {
 export type DeuceType = 'standard' | 'sudden_death_3pt';
 
 export interface GameConfig {
-  maxSets: number;       // 1, 3, 5
-  pointsPerSet: number;  // 15, 21, 25
-  tieBreakPoints: number;// 15 usually
-  hasTieBreak: boolean;  // If true, last set uses tieBreakPoints. If false, uses pointsPerSet.
-  deuceType: DeuceType;  // 'standard' (win by 2) or 'sudden_death_3pt' (reset 0-0, first to 3)
+  maxSets: number;       
+  pointsPerSet: number;  
+  tieBreakPoints: number;
+  hasTieBreak: boolean;  
+  deuceType: DeuceType;  
+}
+
+export interface Player {
+  id: string;
+  name: string;
+  isFixed: boolean;
+  fixedSide?: TeamId | null;
+}
+
+export interface Team {
+  id: string;
+  name: string;
+  players: Player[];
+}
+
+export interface RotationDetail {
+  leavingTeamName: string;
+  enteringTeamName: string;
+  stolenPlayers: string[];
+  fixedPlayers: string[];
+  wentToQueue: string[];
+  donorTeamName?: string;
+  enteringPlayers: string[]; // Novo campo: Jogadores que vêm da fila
 }
 
 export interface GameState {
   teamAName: string; 
-  teamBName: string; 
+  teamBName: string;
+  teamARoster: Team | null;
+  teamBRoster: Team | null;
+  queue: Team[];
+  
+  rotationReport: RotationDetail | null;
+
   scoreA: number;
   scoreB: number;
   setsA: number;
@@ -31,7 +60,7 @@ export interface GameState {
   swappedSides: boolean;
   inSuddenDeath: boolean; 
   config: GameConfig;
-  // matchDurationSeconds REMOVIDO daqui para não causar re-renders globais
+  matchDurationSeconds: number;
   isTimerRunning: boolean;
   servingTeam: TeamId | null; 
   timeoutsA: number; 

@@ -65,23 +65,32 @@ const ScoreCardComponent: React.FC<ScoreCardProps> = ({
     exit: (dir: number) => ({ y: dir > 0 ? -80 : 80, opacity: 0, scale: 1.1, position: 'absolute' as const })
   };
 
-  // FONTE RESPONSIVA (CLAMP + VH/VW)
-  // Isso garante que o texto cresça com a tela, mas não exploda o layout
+  // Lógica de Tipografia Responsiva Extrema
   const getFontSize = () => {
     if (isFullscreen) {
-      // Tela cheia: Usa altura da tela (vh) como base
-      return isLandscape 
-        ? 'text-[35vh] md:text-[40vh]'  // Paisagem Full
-        : 'text-[25vh] md:text-[30vh]'; // Retrato Full
+      if (isLandscape) {
+        return score >= 100 ? 'text-[30vh]' : 'text-[35vh]';
+      } else {
+        return 'text-[25vh]'; 
+      }
     }
-    // Normal: Usa tamanho fixo responsivo
     return isLandscape 
       ? 'text-7xl lg:text-8xl' 
       : 'text-8xl md:text-9xl lg:text-[10rem]';
   };
 
+  // Safe Area Logic
+  // Se não estiver em fullscreen, empurramos o header para baixo (top-20) para fugir da HistoryBar
+  // Se estiver em fullscreen, ele sobe (top-6)
+  const topPosition = isFullscreen 
+    ? 'top-6 px-6' 
+    : (isLandscape ? 'top-16 px-4' : 'top-20 px-6');
+
+  // Padding do container principal para não bater nas barras flutuantes
+  const safeAreaPadding = isFullscreen ? '' : 'pt-16 pb-24';
+
   return (
-    <div className={`relative flex-1 h-full flex flex-col items-center justify-center p-2 transition-all duration-500 overflow-hidden ${theme.bgGradient} ${className || ''}`}>
+    <div className={`relative flex-1 h-full flex flex-col items-center justify-center p-0 transition-all duration-500 overflow-hidden ${theme.bgGradient} ${className || ''}`}>
       
       <AnimatePresence>
         {isServing && (
@@ -106,19 +115,22 @@ const ScoreCardComponent: React.FC<ScoreCardProps> = ({
           </motion.div>
       </div>
 
-      {/* TOP HEADER */}
-      <div className={`absolute w-full px-4 md:px-6 flex items-start justify-between z-20 ${isFullscreen ? 'top-6' : 'top-2 md:top-4'}`}>
+      {/* TOP HEADER (Sets & Service) */}
+      <div className={`absolute w-full flex items-start justify-between z-20 transition-all duration-300 ${topPosition}`}>
+        {/* Sets Indicator */}
         <div className="flex flex-col gap-1">
-             <span className={`text-[10px] font-bold uppercase tracking-widest opacity-60 ${theme.text}`}>Sets</span>
+             {!isFullscreen && <span className={`text-[10px] font-bold uppercase tracking-widest opacity-60 ${theme.text}`}>Sets</span>}
              <div className="flex gap-1.5">
                 {Array.from({ length: setsToWinMatch }).map((_, i) => (
-                <div key={i} className={`rounded-full transition-all duration-500 ${isLandscape ? 'w-2 h-2' : 'w-3 h-3'} ${i < setsWon ? `${theme.accentBg} shadow-lg scale-110` : 'bg-slate-300 dark:bg-slate-800'}`} />
+                <div key={i} className={`rounded-full transition-all duration-500 ${isFullscreen ? 'w-3 h-3' : (isLandscape ? 'w-2 h-2' : 'w-3 h-3')} ${i < setsWon ? `${theme.accentBg} shadow-lg scale-110` : 'bg-slate-300 dark:bg-slate-800'}`} />
                 ))}
             </div>
         </div>
+
+        {/* Controls (Service & Timeout) */}
         <div className="flex flex-col items-end gap-2 md:gap-3">
              <button onClick={(e) => { e.stopPropagation(); triggerHaptic(); onToggleService(); }} className={`transition-all duration-300 p-2 rounded-xl backdrop-blur-sm border ${isServing ? theme.text + ' bg-white/80 dark:bg-white/10 border-' + (teamId === 'A' ? 'indigo' : 'rose') + '-500/30 shadow-lg' : 'text-slate-400 border-transparent hover:bg-black/5'}`}>
-                <Volleyball size={isLandscape ? 16 : 20} />
+                <Volleyball size={isFullscreen ? 24 : (isLandscape ? 16 : 20)} />
             </button>
             <div className="flex gap-1.5">
                 {[0, 1].map((i) => (
@@ -128,10 +140,10 @@ const ScoreCardComponent: React.FC<ScoreCardProps> = ({
         </div>
       </div>
 
-      {/* INTERACTION AREA */}
+      {/* INTERACTION AREA - SAFE AREA APPLIED HERE */}
       <motion.div
         style={{ y }}
-        className="relative z-10 w-full h-full flex flex-col items-center justify-center outline-none touch-action-none cursor-pointer pt-6 md:pt-0"
+        className={`relative z-10 w-full h-full flex flex-col items-center justify-center outline-none touch-action-none cursor-pointer ${safeAreaPadding}`}
         drag="y" dragConstraints={{ top: 0, bottom: 0 }} dragElastic={0.15}
         onDragStart={() => { isDragging.current = true; }}
         onDragEnd={(e, { offset }) => {
@@ -148,19 +160,19 @@ const ScoreCardComponent: React.FC<ScoreCardProps> = ({
                 flex items-center gap-2 rounded-full border px-4 py-1.5 transition-all duration-300 z-30
                 ${isServing ? 'bg-white/60 dark:bg-white/10 border-white/20 backdrop-blur-md shadow-lg shadow-black/5' : 'border-transparent'} 
                 ${isLandscape 
-                    ? 'absolute top-[12%] left-1/2 -translate-x-1/2' 
-                    : 'mb-4 relative'
+                    ? (isFullscreen ? 'absolute top-[5%] left-1/2 -translate-x-1/2' : 'absolute top-[15%] left-1/2 -translate-x-1/2') 
+                    : (isFullscreen ? 'mb-0 absolute top-16' : 'mb-4 relative')
                 }
             `}
         >
-           {isServing && <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} className={`${theme.text}`}><Volleyball size={18} fill="currentColor" className="opacity-20" /></motion.div>}
-           <span className={`font-bold tracking-wider uppercase ${theme.text} ${isFullscreen ? 'text-xl md:text-2xl' : (isLandscape ? 'text-sm' : 'text-lg md:text-xl')} truncate max-w-[250px] text-center`}>
+           {!isFullscreen && isServing && <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} className={`${theme.text}`}><Volleyball size={18} fill="currentColor" className="opacity-20" /></motion.div>}
+           <span className={`font-bold tracking-wider uppercase ${theme.text} ${isFullscreen ? 'text-lg md:text-xl' : (isLandscape ? 'text-sm' : 'text-lg md:text-xl')} truncate max-w-[250px] text-center`}>
              {displayName}
            </span>
         </div>
         
-        {/* SCORE NUMBER (TABULAR NUMS) */}
-        <div className={`relative w-full flex items-center justify-center ${isLandscape ? 'h-auto mt-0' : 'h-48 md:h-64'}`}>
+        {/* SCORE NUMBER */}
+        <div className={`relative w-full flex items-center justify-center pointer-events-none ${isLandscape ? 'h-auto mt-0' : 'h-auto'}`}>
             <AnimatePresence mode="popLayout" initial={false} custom={direction}>
                 <motion.span
                     key={score}
@@ -168,9 +180,11 @@ const ScoreCardComponent: React.FC<ScoreCardProps> = ({
                     variants={scoreVariants}
                     initial="enter" animate="center" exit="exit"
                     transition={{ type: "spring", stiffness: 350, damping: 25 }}
-                    // ADICIONADO 'tabular-nums' explicitamente aqui
                     className={`leading-none font-black tabular-nums tracking-tighter ${theme.scoreColor} drop-shadow-2xl ${getFontSize()}`}
-                    style={{ textShadow: '0 10px 40px rgba(0,0,0,0.1)' }}
+                    style={{ 
+                        textShadow: '0 10px 40px rgba(0,0,0,0.1)',
+                        lineHeight: isFullscreen && isLandscape ? '0.8' : '1'
+                    }}
                 >
                     {score}
                 </motion.span>
@@ -180,10 +194,10 @@ const ScoreCardComponent: React.FC<ScoreCardProps> = ({
         {/* BADGES */}
         <div 
             className={`
-                flex items-center justify-center gap-2 z-30 transition-all duration-300
+                flex items-center justify-center gap-2 z-30 transition-all duration-300 pointer-events-none
                 ${isLandscape 
-                    ? 'absolute bottom-[12%] left-1/2 -translate-x-1/2' 
-                    : 'mt-4 h-8 relative'
+                    ? (isFullscreen ? 'absolute bottom-[5%] left-1/2 -translate-x-1/2' : 'absolute bottom-[15%] left-1/2 -translate-x-1/2')
+                    : (isFullscreen ? 'absolute bottom-16' : 'mt-4 h-8 relative')
                 }
             `}
         >

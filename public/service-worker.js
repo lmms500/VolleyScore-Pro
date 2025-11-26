@@ -1,4 +1,4 @@
-const CACHE_NAME = 'volleyscore-pro-v4'; // Mudei a versão para v4
+const CACHE_NAME = 'volleyscore-pro-v5'; // Incrementei para v5 para forçar atualização limpa
 
 const ASSETS_TO_CACHE = [
   '/',

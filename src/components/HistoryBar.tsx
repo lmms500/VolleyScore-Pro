@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { SetHistory, TeamId, Language } from '../types';
 import { THEME, t, SETS_TO_WIN_MATCH } from '../constants';
@@ -13,7 +12,6 @@ interface HistoryBarProps {
   maxSets: number;
   matchDurationSeconds: number;
   isTimerRunning: boolean;
-  visible: boolean;
 }
 
 const formatTime = (totalSeconds: number) => {
@@ -32,8 +30,7 @@ export const HistoryBar: React.FC<HistoryBarProps> = ({
   lang, 
   maxSets,
   matchDurationSeconds,
-  isTimerRunning,
-  visible
+  isTimerRunning
 }) => {
   const leftTeamId: TeamId = swapped ? 'B' : 'A';
   const rightTeamId: TeamId = swapped ? 'A' : 'B';
@@ -44,7 +41,8 @@ export const HistoryBar: React.FC<HistoryBarProps> = ({
   return (
     <motion.div 
       initial={{ y: -100, opacity: 0 }}
-      animate={{ y: visible ? 0 : -100, opacity: visible ? 1 : 0 }}
+      animate={{ y: 0, opacity: 1 }}
+      exit={{ y: -100, opacity: 0 }}
       transition={{ duration: 0.4, ease: "easeInOut" }}
       className="w-full z-40 px-3 pt-3 pb-1 relative bg-transparent shrink-0 flex justify-center"
     >

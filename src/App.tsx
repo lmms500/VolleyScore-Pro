@@ -1,296 +1,255 @@
-import React, { useState, useEffect, useRef, Suspense } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useVolleyGame } from './hooks/useVolleyGame';
-import { useWakeLock } from './hooks/useWakeLock';
-import { useSound } from './hooks/useSound';
-import { usePWAInstall } from './hooks/usePWAInstall';
-import { useOrientation } from './hooks/useOrientation';
-import { useServiceWorker } from './hooks/useServiceWorker';
 import { ScoreCard } from './components/ScoreCard';
 import { Controls } from './components/Controls';
 import { HistoryBar } from './components/HistoryBar';
-import { UpdateToast } from './components/UpdateToast';
-
-const MatchOverModal = React.lazy(() => import('./components/MatchOverModal').then(module => ({ default: module.MatchOverModal })));
-const SettingsModal = React.lazy(() => import('./components/SettingsModal').then(module => ({ default: module.SettingsModal })));
-const InstallInstructionsModal = React.lazy(() => import('./components/InstallInstructionsModal').then(module => ({ default: module.InstallInstructionsModal })));
-const WelcomeInstallModal = React.lazy(() => import('./components/WelcomeInstallModal').then(module => ({ default: module.WelcomeInstallModal })));
-
+import { MatchOverModal } from './components/MatchOverModal';
+import { SettingsModal } from './components/SettingsModal';
+import { TeamManagerModal } from './components/TeamManagerModal';
 import { TeamId, Language, ThemeMode } from './types';
-import { SETS_TO_WIN_MATCH, t } from './constants';
-import { Minimize, Volume2, VolumeX } from 'lucide-react';
+import { SETS_TO_WIN_MATCH } from './constants';
+import { Minimize } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
 
 export default function App() {
   const {
-    state, matchDurationSeconds, isLoaded, addPoint, subtractPoint, undo, resetMatch,
-    toggleSides, toggleService, useTimeout, applySettings, setTeamNames, canUndo
+    state,
+    isLoaded,
+    addPoint,
+    subtractPoint,
+    undo,
+    resetMatch,
+    toggleSides,
+    toggleService,
+    useTimeout,
+    applySettings,
+    setTeamNames,
+    canUndo,
+    generateTeams,
+    updateRosters,
+    rotateTeams,
+    updateTeamName,
+    movePlayer,
+    removePlayer
   } = useVolleyGame();
 
-  useWakeLock();
-  const isLandscape = useOrientation();
-  const { showReload, reloadPage } = useServiceWorker();
-  const { isInstallable, install, isIOS } = usePWAInstall();
-  const [showIOSInstructions, setShowIOSInstructions] = useState(false);
-  const [showWelcome, setShowWelcome] = useState(false);
-
-  useEffect(() => {
-    const hasSeenWelcome = localStorage.getItem('vs_welcome_tutorial_seen');
-    if (!hasSeenWelcome) {
-      const timer = setTimeout(() => setShowWelcome(true), 500);
-      return () => clearTimeout(timer);
-    }
-  }, []);
-
-  const handleInstallClick = () => isIOS ? setShowIOSInstructions(true) : install();
-  
-  const handleWelcomeInstall = () => {
-    setShowWelcome(false);
-    localStorage.setItem('vs_welcome_tutorial_seen', 'true');
-    handleInstallClick();
-  };
-
-  const handleWelcomeClose = () => {
-    setShowWelcome(false);
-    localStorage.setItem('vs_welcome_tutorial_seen', 'true');
-  };
-
-  const [soundEnabled, setSoundEnabled] = useState(true);
-  const [lang, setLang] = useState<Language>('pt'); 
-  const { speak, playBeep } = useSound(lang, soundEnabled);
-  
-  const prevScoreA = useRef(0);
-  const prevScoreB = useRef(0);
-  const prevSet = useRef(1);
-
-  useEffect(() => {
-    if (!isLoaded) return;
-    if (state.scoreA > prevScoreA.current || state.scoreB > prevScoreB.current) {
-      playBeep(600, 50);
-      const scoringTeam = state.scoreA > prevScoreA.current ? 'A' : 'B';
-      const nameKey = scoringTeam === 'A' ? 'home' : 'guest';
-      const defaultName = t(lang, nameKey);
-      const teamName = (scoringTeam === 'A' ? state.teamAName : state.teamBName) || defaultName;
-      setTimeout(() => { speak(`${t(lang, 'point')} ${teamName}`); }, 100);
-    }
-    if (state.currentSet > prevSet.current) {
-        const lastSet = state.history[state.history.length - 1];
-        if (lastSet) {
-            const winnerName = lastSet.winner === 'A' ? (state.teamAName || t(lang, 'home')) : (state.teamBName || t(lang, 'guest'));
-            setTimeout(() => { speak(`${t(lang, 'set')} ${winnerName}`); }, 500);
-        }
-    }
-    prevScoreA.current = state.scoreA;
-    prevScoreB.current = state.scoreB;
-    prevSet.current = state.currentSet;
-  }, [state.scoreA, state.scoreB, state.currentSet, isLoaded, lang, playBeep, speak, state.teamAName, state.teamBName, state.history]);
-  
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isTeamManagerOpen, setIsTeamManagerOpen] = useState(false);
+  const [lang, setLang] = useState<Language>('pt'); 
   const [themeMode, setThemeMode] = useState<ThemeMode>('dark');
+  const [isLandscape, setIsLandscape] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
+
+  // Detecção Robusta de Orientação e Resize
+  useEffect(() => {
+    const checkOrientation = () => {
+      setIsLandscape(window.innerWidth > window.innerHeight);
+    };
+    
+    checkOrientation();
+    window.addEventListener('resize', checkOrientation);
+    window.addEventListener('orientationchange', checkOrientation);
+
+    return () => {
+      window.removeEventListener('resize', checkOrientation);
+      window.removeEventListener('orientationchange', checkOrientation);
+    };
+  }, []);
 
   useEffect(() => {
     const root = document.documentElement;
-    if (themeMode === 'dark') root.classList.add('dark');
-    else root.classList.remove('dark');
+    if (themeMode === 'dark') {
+      root.classList.add('dark');
+    } else {
+      root.classList.remove('dark');
+    }
   }, [themeMode]);
 
   useEffect(() => {
-    const handleFullscreenChange = () => setIsFullscreen(!!document.fullscreenElement);
+    const handleFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+    };
     document.addEventListener('fullscreenchange', handleFullscreenChange);
     return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
   }, []);
 
   const toggleFullscreenMode = () => {
     if (!document.fullscreenElement) {
-      document.documentElement.requestFullscreen().catch(() => setIsFullscreen(true));
+      document.documentElement.requestFullscreen().catch((err) => {
+        console.error(`Error attempting to enable fullscreen mode: ${err.message} (${err.name})`);
+        setIsFullscreen(true);
+      });
+    } else {
+      setIsFullscreen(true);
     }
-    setIsFullscreen(true);
   };
 
   const exitFullscreenMode = () => {
-    if (document.fullscreenElement) document.exitFullscreen();
+    if (document.fullscreenElement) {
+      document.exitFullscreen();
+    }
     setIsFullscreen(false);
   };
 
-  if (!isLoaded) return null;
+  // @ts-ignore
+  const isDev = typeof import.meta !== 'undefined' && (import.meta as any).env && (import.meta as any).env.DEV;
 
   const leftTeamId: TeamId = state.swappedSides ? 'B' : 'A';
   const rightTeamId: TeamId = state.swappedSides ? 'A' : 'B';
+
   const isDecidingSet = state.config.maxSets > 1 && state.currentSet === state.config.maxSets;
   const useTieBreak = isDecidingSet && state.config.hasTieBreak;
   const targetPoints = state.inSuddenDeath ? 3 : (useTieBreak ? state.config.tieBreakPoints : state.config.pointsPerSet);
 
+  if (!isLoaded) return null;
+
   return (
-    <div className="h-[100dvh] w-full flex flex-col items-center bg-slate-50 dark:bg-[#020617] transition-colors duration-300 relative overflow-hidden">
+    <div className="relative h-full w-full bg-slate-50 dark:bg-[#020617] transition-colors duration-300 overflow-hidden">
       
-      {/* CONTAINER MAXIMO (Responsividade para Tablets/PC) */}
-      <div className="w-full h-full max-w-[1600px] relative flex flex-col shadow-2xl">
-
-        <UpdateToast show={showReload} onReload={reloadPage} />
-
-        {!isFullscreen && (
-          <div className="absolute top-3 right-3 z-[60] mt-[env(safe-area-inset-top)] mr-[env(safe-area-inset-right)]">
-              <button 
-                onClick={() => setSoundEnabled(!soundEnabled)} 
-                className="p-2.5 bg-white/10 dark:bg-white/5 backdrop-blur-md rounded-full text-slate-500 dark:text-slate-400 border border-black/5 dark:border-white/10 shadow-sm hover:bg-white/20 active:scale-95 transition-all"
-              >
-                  {soundEnabled ? <Volume2 size={18} /> : <VolumeX size={18} />}
-              </button>
-          </div>
-        )}
-
-        {!isFullscreen && (
-          <div className="pt-[env(safe-area-inset-top)] pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)] w-full z-50">
-            <HistoryBar 
-              history={state.history} 
-              currentSet={state.currentSet}
-              swapped={state.swappedSides}
-              lang={lang}
-              maxSets={state.config.maxSets}
-              matchDurationSeconds={matchDurationSeconds}
-              isTimerRunning={state.isTimerRunning}
-              visible={true}
-            />
-          </div>
-        )}
-
-        {/* MAIN GRID - Adaptável */}
-        <main className={`flex-1 flex md:flex-row relative overflow-hidden ${isLandscape ? 'flex-row' : 'flex-col'} ${isFullscreen ? 'p-0' : ''}`}>
-          <ScoreCard
-            teamId={leftTeamId}
-            teamName={leftTeamId === 'A' ? state.teamAName : state.teamBName}
-            score={leftTeamId === 'A' ? state.scoreA : state.scoreB}
-            opponentScore={leftTeamId === 'A' ? state.scoreB : state.scoreA}
-            setsWon={leftTeamId === 'A' ? state.setsA : state.setsB}
-            maxSets={state.config.maxSets}
-            setsToWinMatch={SETS_TO_WIN_MATCH(state.config.maxSets)}
-            onAdd={() => addPoint(leftTeamId)}
-            onSubtract={() => subtractPoint(leftTeamId)}
-            onToggleService={toggleService}
-            onUseTimeout={() => useTimeout(leftTeamId)}
-            isWinner={state.matchWinner === leftTeamId}
-            inSuddenDeath={state.inSuddenDeath}
-            isServing={state.servingTeam === leftTeamId}
-            timeoutsUsed={leftTeamId === 'A' ? state.timeoutsA : state.timeoutsB}
-            pointsToWinSet={targetPoints}
-            lang={lang}
-            isLandscape={isLandscape}
-            isFullscreen={isFullscreen}
-            className={isLandscape 
-              ? "pl-[env(safe-area-inset-left)] py-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]" 
-              : "pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)] pt-[env(safe-area-inset-top)]"}
-          />
-
-          {/* Separador com efeito vidro */}
-          <div className={`z-10 bg-white/10 dark:bg-white/5 backdrop-blur-sm ${isLandscape ? 'w-px h-full' : 'h-px w-full md:w-px md:h-full'}`} />
-
-          <ScoreCard
-            teamId={rightTeamId}
-            teamName={rightTeamId === 'A' ? state.teamAName : state.teamBName}
-            score={rightTeamId === 'A' ? state.scoreA : state.scoreB}
-            opponentScore={rightTeamId === 'A' ? state.scoreB : state.scoreA} 
-            setsWon={rightTeamId === 'A' ? state.setsA : state.setsB}
-            maxSets={state.config.maxSets}
-            setsToWinMatch={SETS_TO_WIN_MATCH(state.config.maxSets)}
-            onAdd={() => addPoint(rightTeamId)}
-            onSubtract={() => subtractPoint(rightTeamId)}
-            onToggleService={toggleService}
-            onUseTimeout={() => useTimeout(rightTeamId)}
-            isWinner={state.matchWinner === rightTeamId}
-            inSuddenDeath={state.inSuddenDeath}
-            isServing={state.servingTeam === rightTeamId}
-            timeoutsUsed={rightTeamId === 'A' ? state.timeoutsA : state.timeoutsB}
-            pointsToWinSet={targetPoints}
-            lang={lang}
-            isLandscape={isLandscape}
-            isFullscreen={isFullscreen}
-            className={isLandscape 
-              ? "pr-[env(safe-area-inset-right)] py-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]" 
-              : "pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)] pb-[env(safe-area-inset-bottom)]"}
-          />
-        </main>
-
-        {!isFullscreen && (
-          <div className="pb-[env(safe-area-inset-bottom)] pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)] w-full z-50">
-            <Controls 
-              onUndo={undo}
-              onReset={() => resetMatch()}
-              onSwap={toggleSides}
-              onSettings={() => setIsSettingsOpen(true)}
-              onFullscreen={toggleFullscreenMode}
-              onInstall={handleInstallClick}
-              canInstall={isInstallable}
-              canUndo={canUndo}
-              lang={lang}
-              isLandscape={isLandscape}
-              visible={true}
-            />
-          </div>
-        )}
-
-        <AnimatePresence>
-          {isFullscreen && (
-            <motion.button
-              initial={{ scale: 0, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0, opacity: 0 }}
-              onClick={exitFullscreenMode}
-              className="fixed bottom-6 right-6 z-50 w-16 h-16 bg-black/20 dark:bg-white/5 backdrop-blur-md text-white/50 hover:text-white rounded-full flex items-center justify-center border border-white/10 shadow-lg mb-[env(safe-area-inset-bottom)] mr-[env(safe-area-inset-right)]"
-            >
-              <Minimize size={32} />
-            </motion.button>
-          )}
-        </AnimatePresence>
-
-      </div> {/* Fim Container Maximo */}
-
-      <Suspense fallback={null}>
-        <MatchOverModal 
-          winner={state.matchWinner}
-          onReset={() => resetMatch()}
+      {/* LAYER 0: Main Game Area (Background & Score) */}
+      <main className={`absolute inset-0 z-0 flex md:flex-row overflow-hidden ${isLandscape ? 'flex-row' : 'flex-col'}`}>
+        <ScoreCard
+          teamId={leftTeamId}
+          teamName={leftTeamId === 'A' ? state.teamAName : state.teamBName}
+          score={leftTeamId === 'A' ? state.scoreA : state.scoreB}
+          opponentScore={leftTeamId === 'A' ? state.scoreB : state.scoreA}
+          setsWon={leftTeamId === 'A' ? state.setsA : state.setsB}
+          maxSets={state.config.maxSets}
+          setsToWinMatch={SETS_TO_WIN_MATCH(state.config.maxSets)}
+          onAdd={() => addPoint(leftTeamId)}
+          onSubtract={() => subtractPoint(leftTeamId)}
+          onToggleService={toggleService}
+          onUseTimeout={() => useTimeout(leftTeamId)}
+          isWinner={state.matchWinner === leftTeamId}
+          inSuddenDeath={state.inSuddenDeath}
+          isServing={state.servingTeam === leftTeamId}
+          timeoutsUsed={leftTeamId === 'A' ? state.timeoutsA : state.timeoutsB}
+          pointsToWinSet={targetPoints}
           lang={lang}
-          teamAName={state.teamAName}
-          teamBName={state.teamBName}
-          history={state.history}
-          finalSetsA={state.setsA}
-          finalSetsB={state.setsB}
+          isLandscape={isLandscape}
+          isFullscreen={isFullscreen} 
         />
 
-        <SettingsModal 
-          isOpen={isSettingsOpen}
-          currentConfig={state.config}
-          teamAName={state.teamAName}
-          teamBName={state.teamBName}
-          onClose={() => setIsSettingsOpen(false)}
-          onSave={applySettings}
-          onSaveNames={setTeamNames}
+        {/* Divisor Visual */}
+        <div className={`z-10 bg-gradient-to-b from-transparent via-slate-300 dark:via-white/10 to-transparent ${isLandscape ? 'w-px h-full bg-gradient-to-b' : 'h-px w-full bg-gradient-to-r md:w-px md:h-full md:bg-gradient-to-b'}`} />
+
+        <ScoreCard
+          teamId={rightTeamId}
+          teamName={rightTeamId === 'A' ? state.teamAName : state.teamBName}
+          score={rightTeamId === 'A' ? state.scoreA : state.scoreB}
+          opponentScore={rightTeamId === 'A' ? state.scoreB : state.scoreA} 
+          setsWon={rightTeamId === 'A' ? state.setsA : state.setsB}
+          maxSets={state.config.maxSets}
+          setsToWinMatch={SETS_TO_WIN_MATCH(state.config.maxSets)}
+          onAdd={() => addPoint(rightTeamId)}
+          onSubtract={() => subtractPoint(rightTeamId)}
+          onToggleService={toggleService}
+          onUseTimeout={() => useTimeout(rightTeamId)}
+          isWinner={state.matchWinner === rightTeamId}
+          inSuddenDeath={state.inSuddenDeath}
+          isServing={state.servingTeam === rightTeamId}
+          timeoutsUsed={rightTeamId === 'A' ? state.timeoutsA : state.timeoutsB}
+          pointsToWinSet={targetPoints}
           lang={lang}
-          setLang={setLang}
-          themeMode={themeMode}
-          setThemeMode={setThemeMode}
+          isLandscape={isLandscape}
+          isFullscreen={isFullscreen}
         />
+      </main>
 
-        <AnimatePresence>
-          {showIOSInstructions && (
-              <InstallInstructionsModal 
-                  isOpen={showIOSInstructions} 
-                  onClose={() => setShowIOSInstructions(false)} 
+      {/* LAYER 1: Floating Bars (Top & Bottom) */}
+      <AnimatePresence>
+        {!isFullscreen && (
+          <>
+            <div className="absolute top-0 left-0 right-0 z-50 pointer-events-none">
+              <div className="pointer-events-auto">
+                <HistoryBar 
+                  history={state.history} 
+                  currentSet={state.currentSet}
+                  swapped={state.swappedSides}
                   lang={lang}
-              />
-          )}
-        </AnimatePresence>
+                  maxSets={state.config.maxSets}
+                  matchDurationSeconds={state.matchDurationSeconds}
+                  isTimerRunning={state.isTimerRunning}
+                />
+              </div>
+            </div>
 
-        <AnimatePresence>
-          {showWelcome && (
-              <WelcomeInstallModal 
-                  isOpen={showWelcome} 
-                  onClose={handleWelcomeClose} 
-                  onInstall={handleWelcomeInstall}
+            <div className="absolute bottom-0 left-0 right-0 z-50 pointer-events-none">
+               <div className="pointer-events-auto">
+                <Controls 
+                  onUndo={undo}
+                  onReset={() => resetMatch()}
+                  onSwap={toggleSides}
+                  onSettings={() => setIsSettingsOpen(true)}
+                  onFullscreen={toggleFullscreenMode}
+                  onOpenTeamManager={() => setIsTeamManagerOpen(true)}
+                  canUndo={canUndo}
                   lang={lang}
-              />
-          )}
-        </AnimatePresence>
-      </Suspense>
+                />
+               </div>
+            </div>
+          </>
+        )}
+      </AnimatePresence>
+
+      {/* LAYER 2: Modals & Overlays */}
+      <AnimatePresence>
+        {isFullscreen && (
+          <motion.button
+            initial={{ scale: 0, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            exit={{ scale: 0, opacity: 0 }}
+            onClick={exitFullscreenMode}
+            className="fixed bottom-6 right-6 z-[60] w-12 h-12 bg-black/40 hover:bg-black/60 text-white/70 hover:text-white rounded-full flex items-center justify-center backdrop-blur-md border border-white/10 shadow-lg transition-all"
+          >
+            <Minimize size={20} />
+          </motion.button>
+        )}
+      </AnimatePresence>
+
+      <MatchOverModal 
+        winner={state.matchWinner}
+        onReset={() => resetMatch()}
+        onRotate={rotateTeams} 
+        lang={lang}
+        teamAName={state.teamAName}
+        teamBName={state.teamBName}
+        history={state.history}
+        finalSetsA={state.setsA}
+        finalSetsB={state.setsB}
+        hasQueue={state.queue.length > 0}
+        rotationReport={state.rotationReport}
+      />
+
+      <SettingsModal 
+        isOpen={isSettingsOpen}
+        currentConfig={state.config}
+        teamAName={state.teamAName}
+        teamBName={state.teamBName}
+        onClose={() => setIsSettingsOpen(false)}
+        onSave={applySettings}
+        onSaveNames={setTeamNames}
+        lang={lang}
+        setLang={setLang}
+        themeMode={themeMode}
+        setThemeMode={setThemeMode}
+      />
+
+      <TeamManagerModal
+        isOpen={isTeamManagerOpen}
+        onClose={() => setIsTeamManagerOpen(false)}
+        lang={lang}
+        onGenerate={generateTeams}
+        onUpdateRosters={updateRosters}
+        onUpdateTeamName={updateTeamName}
+        onMovePlayer={movePlayer} 
+        onRemovePlayer={removePlayer}
+        onUndo={undo}
+        canUndo={canUndo}
+        teamA={state.teamARoster}
+        teamB={state.teamBRoster}
+        queue={state.queue}
+      />
     </div>
   );
 }

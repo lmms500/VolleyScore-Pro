@@ -60,7 +60,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const [showRuleInfo, setShowRuleInfo] = useState(false);
   const [showOfficialRules, setShowOfficialRules] = useState(false);
 
-  // Sync internal state when modal opens
   useEffect(() => {
     if (isOpen) {
       setConfig(currentConfig);
@@ -77,27 +76,25 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     onClose();
   };
 
-  // Helper to calculate sets to win based on maxSets
   const currentSetsToWin = Math.ceil(config.maxSets / 2);
 
-  // DEFINIÇÃO DOS PRESETS
   const applyPreset = (type: 'monday' | 'official') => {
     if (type === 'monday') {
       setConfig({
         ...config,
-        maxSets: 1,             // 1 Set para vencer (Jogo único)
-        pointsPerSet: 15,       // 15 pontos
-        hasTieBreak: false,     // Sem tie break
-        deuceType: 'sudden_death_3pt' // Zera no empate
+        maxSets: 1,
+        pointsPerSet: 15,
+        hasTieBreak: false,
+        deuceType: 'sudden_death_3pt'
       });
     } else {
       setConfig({
         ...config,
-        maxSets: 5,             // Melhor de 5
-        pointsPerSet: 25,       // 25 pontos
-        hasTieBreak: true,      // Tie break no 5º
+        maxSets: 5,
+        pointsPerSet: 25,
+        hasTieBreak: true,
         tieBreakPoints: 15,
-        deuceType: 'standard'   // Vai a 2
+        deuceType: 'standard'
       });
     }
   };
@@ -124,14 +121,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
         <div className="p-6 space-y-8 overflow-y-auto custom-scrollbar">
           
-          {/* --- NOVA SEÇÃO: PRESETS --- */}
+          {/* Presets */}
           <div>
             <label className="text-slate-400 text-xs font-bold uppercase tracking-wider mb-3 flex items-center gap-2">
               <LayoutTemplate size={12} />
-              {lang === 'pt' ? 'Modos Rápidos' : 'Quick Presets'}
+              {t(lang, 'presets')}
             </label>
             <div className="grid grid-cols-2 gap-3">
-                {/* Botão Vôlei de Segunda */}
                 <button
                     onClick={() => applyPreset('monday')}
                     className={`py-3 px-3 rounded-xl font-bold text-xs flex flex-col items-center justify-center gap-2 border transition-all ${
@@ -141,10 +137,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     }`}
                 >
                     <Zap size={20} className={config.maxSets === 1 && config.pointsPerSet === 15 && config.deuceType === 'sudden_death_3pt' ? 'text-rose-500' : 'text-slate-400'} />
-                    <span>Vôlei de Segunda</span>
+                    <span>{t(lang, 'mondayVolley')}</span>
                 </button>
 
-                {/* Botão Oficial */}
                 <button
                     onClick={() => applyPreset('official')}
                     className={`py-3 px-3 rounded-xl font-bold text-xs flex flex-col items-center justify-center gap-2 border transition-all ${
@@ -154,14 +149,14 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     }`}
                 >
                     <Trophy size={20} className={config.maxSets === 5 && config.pointsPerSet === 25 && config.deuceType === 'standard' ? 'text-indigo-500' : 'text-slate-400'} />
-                    <span>{lang === 'pt' ? 'Oficial (Padrão)' : 'Official (Standard)'}</span>
+                    <span>{t(lang, 'officialStandard')}</span>
                 </button>
             </div>
           </div>
 
           <div className="h-px bg-slate-200 dark:bg-white/5" />
 
-          {/* Official Rules Info */}
+          {/* Rules Info */}
           <div className="bg-slate-50 dark:bg-slate-800/40 rounded-xl p-4 border border-slate-100 dark:border-white/5">
              <button 
                onClick={() => setShowOfficialRules(!showOfficialRules)}
@@ -192,7 +187,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           <div>
             <label className="text-slate-400 text-xs font-bold uppercase tracking-wider mb-3 flex items-center gap-2">
               <Users size={12} />
-              {lang === 'pt' ? 'Nomes dos Times' : 'Team Names'}
+              {t(lang, 'teamNames')}
             </label>
             <div className="grid gap-3">
               <div className="relative">
@@ -220,13 +215,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
           <div className="h-px bg-slate-200 dark:bg-white/5" />
 
-          {/* Global App Settings: Language & Theme */}
+          {/* Appearance */}
           <div>
             <label className="text-slate-400 text-xs font-bold uppercase tracking-wider mb-3 block">
               {t(lang, 'appearance')}
             </label>
             <div className="grid grid-cols-2 gap-3">
-              {/* Language Toggle */}
               <button 
                 onClick={() => setLang(lang === 'en' ? 'pt' : 'en')}
                 className="py-3 px-4 rounded-xl font-bold text-sm bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 flex items-center justify-center gap-2 border border-slate-200 dark:border-white/5"
@@ -235,7 +229,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 <span>{lang === 'en' ? 'English' : 'Português'}</span>
               </button>
 
-              {/* Theme Toggle */}
               <button 
                 onClick={() => setThemeMode(themeMode === 'light' ? 'dark' : 'light')}
                 className="py-3 px-4 rounded-xl font-bold text-sm bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 flex items-center justify-center gap-2 border border-slate-200 dark:border-white/5"
@@ -248,7 +241,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
           <div className="h-px bg-slate-200 dark:bg-white/5" />
 
-          {/* Sets Selection */}
+          {/* Match Type */}
           <div>
             <label className="text-slate-400 text-xs font-bold uppercase tracking-wider mb-3 block">
               {t(lang, 'matchType')}
@@ -265,13 +258,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               ))}
             </div>
             <p className="text-center text-xs text-slate-500 mt-2">
-               {lang === 'pt' ? 'Ganha quem vencer ' : 'Win by taking '} 
-               <strong className="text-slate-700 dark:text-slate-300">{currentSetsToWin}</strong> 
-               {lang === 'pt' ? ' sets primeiro.' : ' sets first.'}
+               {t(lang, 'winByTaking')} 
+               <strong className="text-slate-700 dark:text-slate-300 mx-1">{currentSetsToWin}</strong> 
+               {t(lang, 'setsFirst')}
             </p>
           </div>
 
-          {/* Points Selection */}
+          {/* Points */}
           <div>
             <label className="text-slate-400 text-xs font-bold uppercase tracking-wider mb-3 block">
               {t(lang, 'pointsPerSet')}
@@ -289,7 +282,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             </div>
           </div>
           
-           {/* Tiebreak Selection */}
+           {/* Tiebreak */}
            <div>
             <div className="flex justify-between items-center mb-3">
               <label className="text-slate-400 text-xs font-bold uppercase tracking-wider block">
@@ -334,7 +327,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             )}
           </div>
 
-          {/* Deuce Rule Selection */}
+          {/* Deuce Rule */}
           <div className="pt-4 border-t border-slate-200 dark:border-white/5">
             <div className="flex items-center justify-between mb-3">
               <label className="text-slate-400 text-xs font-bold uppercase tracking-wider block">
