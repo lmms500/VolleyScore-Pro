@@ -1,64 +1,79 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 
+/**
+ * Hook para gerenciar o ciclo de vida do Service Worker e atualizações.
+ */
 export const useServiceWorker = () => {
-  const [waitingWorker, setWaitingWorker] = useState<ServiceWorker | null>(null);
-  const [showReload, setShowReload] = useState(false);
+  const [needsUpdate, setNeedsUpdate] = useState(false);
+  const [registration, setRegistration] = useState<ServiceWorkerRegistration | null>(null);
 
-  // Função chamada quando o usuário clica no botão "Atualizar"
-  const reloadPage = () => {
-    if (waitingWorker) {
-      waitingWorker.postMessage({ type: 'SKIP_WAITING' });
+  // Função para forçar a atualização do Service Worker
+  const updateApp = useCallback(() => {
+    if (registration && registration.waiting) {
+      // 1. Envia a mensagem para o SW em waiting para que ele chame skipWaiting()
+      registration.waiting.postMessage({ type: 'SKIP_WAITING' });
+      
+      // 2. Limpa o estado e força o reload da página após o controle ser assumido
+      const controllerChangeHandler = () => {
+        window.location.reload();
+      };
+
+      // Escuta quando o novo SW assumir o controle
+      navigator.serviceWorker.addEventListener('controllerchange', controllerChangeHandler);
+      setNeedsUpdate(false); 
     }
-  };
+  }, [registration]);
 
   useEffect(() => {
-    // Só registra em produção para evitar loops durante desenvolvimento
-    // @ts-ignore
-    const isProd = import.meta.env.PROD;
-    if (!isProd) return;
+    // CRÍTICO: Registra o SW apenas em ambiente de produção para evitar conflitos com HMR
+    if ('serviceWorker' in navigator && import.meta.env.PROD) {
+      
+      const swUrl = `/service-worker.js`;
 
-    if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
-      navigator.serviceWorker.register('/service-worker.js')
-        .then((registration) => {
-          // Se já tem uma atualização esperando
-          if (registration.waiting) {
-            setWaitingWorker(registration.waiting);
-            setShowReload(true);
-          }
+      navigator.serviceWorker.register(swUrl)
+        .then((reg) => {
+          setRegistration(reg);
 
-          // Monitora novas atualizações chegando
-          registration.addEventListener('updatefound', () => {
-            const newWorker = registration.installing;
-            if (newWorker) {
-              newWorker.addEventListener('statechange', () => {
-                if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                  setWaitingWorker(newWorker);
-                  setShowReload(true);
+          // Escuta por uma atualização
+          reg.onupdatefound = () => {
+            const installingWorker = reg.installing;
+
+            if (installingWorker) {
+              installingWorker.onstatechange = () => {
+                if (installingWorker.state === 'installed') {
+                  if (navigator.serviceWorker.controller) {
+                    // Novo conteúdo disponível e pronto para ser ativado (waiting)
+                    setNeedsUpdate(true);
+                  } else {
+                    // Primeiro registro: conteúdo foi cacheado.
+                    console.log('Service Worker installed successfully.');
+                  }
                 }
-              });
+              };
             }
-          });
+          };
         })
-        .catch((err) => console.error('Erro SW:', err));
-
-      // --- PROTEÇÃO CONTRA LOOP INFINITO ---
-      // Variável local para garantir que só recarregamos uma vez
-      let refreshing = false;
-
-      const handleControllerChange = () => {
-        if (!refreshing) {
-          refreshing = true;
-          window.location.reload();
-        }
-      };
-
-      navigator.serviceWorker.addEventListener('controllerchange', handleControllerChange);
-
-      return () => {
-        navigator.serviceWorker.removeEventListener('controllerchange', handleControllerChange);
-      };
+        .catch((error) => {
+          console.error('Service Worker registration failed:', error);
+        });
+        
     }
+    
+    // Se não for produção (DEV), garante que o SW não seja usado.
+    if (!import.meta.env.PROD) {
+        console.log('Service Worker registration skipped in development environment.');
+    }
+    
   }, []);
+  
+  // Adiciona listener para a mensagem de skipWaiting
+  useEffect(() => {
+    if (registration && registration.waiting) {
+        // Se já houver um waiting worker ao carregar, dispara o prompt de atualização
+        setNeedsUpdate(true);
+    }
+  }, [registration]);
 
-  return { showReload, reloadPage };
+
+  return { needsUpdate, updateApp, registration };
 };

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { ArrowLeftRight, RotateCcw, Check, X, Settings, Maximize, Users, Eraser, RotateCw } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Language } from '../types';
+import { Language, ThemeMode } from '../types';
 import { t } from '../constants';
 
 interface ControlsProps {
@@ -13,6 +13,8 @@ interface ControlsProps {
   onOpenTeamManager: () => void;
   canUndo: boolean;
   lang: Language;
+  themeMode: ThemeMode;
+  isMatchOver: boolean;
 }
 
 export const Controls: React.FC<ControlsProps> = ({ 
@@ -23,13 +25,28 @@ export const Controls: React.FC<ControlsProps> = ({
     onFullscreen,
     onOpenTeamManager,
     canUndo, 
-    lang
+    lang,
 }) => {
+
   const [confirmReset, setConfirmReset] = useState(false);
 
-  // Dock Button Style
-  const btnClass = "relative flex items-center justify-center w-12 h-12 rounded-2xl text-slate-500 dark:text-slate-400 transition-all active:scale-90 hover:bg-slate-100 dark:hover:bg-white/10 hover:text-slate-900 dark:hover:text-white";
-  const iconSize = 22;
+  // Botões limpos e com z-index correto
+  const btnClass = `
+    relative z-20 flex items-center justify-center 
+    w-10 h-10 rounded-xl 
+    bg-white/5 dark:bg-black/20 
+    ring-1 ring-transparent hover:ring-white/10 
+    
+    text-slate-300 dark:text-slate-300 
+    transition-all duration-200 active:scale-90 
+    hover:bg-white/10 dark:hover:bg-white/10 
+    hover:text-white dark:hover:text-white 
+    hover:shadow-lg hover:shadow-black/10 dark:hover:shadow-white/5
+  `;
+
+  const iconSize = 20;
+
+  const handleReload = () => window.location.reload();
 
   return (
     <motion.div 
@@ -37,93 +54,118 @@ export const Controls: React.FC<ControlsProps> = ({
       animate={{ y: 0, opacity: 1 }}
       exit={{ y: 100, opacity: 0 }}
       transition={{ duration: 0.4, ease: "easeInOut" }}
-      className="w-full z-40 px-4 pb-6 pt-2 relative bg-transparent shrink-0 flex justify-center pointer-events-none"
+      className="w-full px-4 pb-8 pt-4 relative bg-transparent shrink-0 flex justify-center"
     >
-      <div className="bg-white/80 dark:bg-[#1e293b]/80 backdrop-blur-2xl border border-white/50 dark:border-white/10 shadow-2xl shadow-black/10 rounded-[2rem] p-1.5 flex items-center gap-1 pointer-events-auto ring-1 ring-black/5 max-w-full overflow-x-auto no-scrollbar">
-      
-         {/* Team Manager */}
-         <button onClick={onOpenTeamManager} className={btnClass} aria-label={t(lang, 'teamManager')}>
-            <Users size={iconSize} />
+      <div
+        className="
+          bg-black/20 dark:bg-slate-900/40 
+          backdrop-blur-2xl 
+          shadow-2xl shadow-black/40 
+          rounded-2xl p-2 flex items-center gap-1 
+          pointer-events-auto max-w-full overflow-x-auto no-scrollbar
+          ring-1 ring-white/10 dark:ring-white/5 
+          z-10
+        "
+      >
+
+        {/* TEAM MANAGER */}
+        <button
+          onClick={onOpenTeamManager}
+          className={btnClass}
+          aria-label={t(lang, 'manageTeams')}
+        >
+          <Users size={iconSize} strokeWidth={2} />
         </button>
 
-         {/* Swap */}
-        <button onClick={onSwap} className={btnClass} aria-label={t(lang, 'swap')}>
-            <ArrowLeftRight size={iconSize} />
+        {/* SWAP */}
+        <button
+          onClick={onSwap}
+          className={btnClass}
+          aria-label={t(lang, 'swap')}
+        >
+          <ArrowLeftRight size={iconSize} strokeWidth={2} />
         </button>
 
-        {/* Divider */}
-        <div className="w-px h-6 bg-slate-300 dark:bg-white/10 mx-1 rounded-full shrink-0"></div>
+        {/* DIVIDER */}
+        <div className="w-px h-6 bg-slate-500/50 dark:bg-white/10 mx-2 rounded-full" />
 
-        {/* Reset Logic (Eraser) */}
-        <div className="relative shrink-0">
-        <AnimatePresence mode="wait">
-          {!confirmReset ? (
-            <motion.button
-              key="reset-btn"
-              initial={{ opacity: 0, scale: 0.5 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.5 }}
-              onClick={() => setConfirmReset(true)}
-              className={btnClass}
-              aria-label={t(lang, 'reset')}
-            >
-              <Eraser size={iconSize} />
-            </motion.button>
-          ) : (
-            <motion.div
-              key="confirm-box"
-              initial={{ opacity: 0, width: 0 }}
-              animate={{ opacity: 1, width: 'auto' }}
-              exit={{ opacity: 0, width: 0 }}
-              className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 rounded-2xl p-0.5 overflow-hidden"
-            >
-              <button 
-                onClick={() => { onReset(); setConfirmReset(false); }}
-                className="w-11 h-11 flex items-center justify-center bg-rose-500 text-white rounded-xl shadow-sm"
+        {/* RESET */}
+        <div className="relative">
+          <AnimatePresence mode="wait">
+            {!confirmReset ? (
+              <motion.button
+                key="reset-btn"
+                initial={{ opacity: 0, scale: 0.5 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.5 }}
+                onClick={() => setConfirmReset(true)}
+                className={btnClass}
+                aria-label={t(lang, 'reset')}
               >
-                <Check size={18} strokeWidth={3} />
-              </button>
-              <button 
-                onClick={() => setConfirmReset(false)}
-                className="w-11 h-11 flex items-center justify-center text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-xl"
+                <Eraser size={iconSize} strokeWidth={2} />
+              </motion.button>
+            ) : (
+              <motion.div
+                key="confirm-box"
+                initial={{ opacity: 0, width: 0 }}
+                animate={{ opacity: 1, width: 'auto' }}
+                exit={{ opacity: 0, width: 0 }}
+                className="
+                  relative z-[9999] flex items-center gap-1 
+                  bg-white/10 dark:bg-slate-800/50 
+                  rounded-xl p-1 overflow-hidden 
+                  ring-1 ring-white/50 dark:ring-black/20
+                "
               >
-                <X size={18} strokeWidth={3} />
-              </button>
-            </motion.div>
-          )}
-        </AnimatePresence>
+                <button
+                  onClick={() => {
+                    onReset();
+                    setConfirmReset(false);
+                  }}
+                  className="w-8 h-8 flex items-center justify-center bg-rose-600 text-white rounded-lg shadow-md hover:bg-rose-700 transition-colors"
+                >
+                  <Check size={16} strokeWidth={3} />
+                </button>
+
+                <button
+                  onClick={() => setConfirmReset(false)}
+                  className="w-8 h-8 flex items-center justify-center text-slate-200 hover:bg-white/20 dark:hover:bg-slate-700/50 rounded-lg transition-colors"
+                >
+                  <X size={16} strokeWidth={3} />
+                </button>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
 
-        {/* Undo */}
-        <button 
-            onClick={onUndo}
-            disabled={!canUndo}
-            className={`${btnClass} ${!canUndo ? 'opacity-30 cursor-not-allowed' : ''}`}
-            aria-label={t(lang, 'undo')}
+        {/* UNDO */}
+        <button
+          onClick={onUndo}
+          disabled={!canUndo}
+          aria-label={t(lang, 'undo')}
+          className={`${btnClass} ${
+            !canUndo ? 'opacity-30 cursor-not-allowed pointer-events-none' : ''
+          }`}
         >
-            <RotateCcw size={iconSize} />
+          <RotateCcw size={iconSize} strokeWidth={2} />
         </button>
 
-        {/* Divider */}
-        <div className="w-px h-6 bg-slate-300 dark:bg-white/10 mx-1 rounded-full shrink-0"></div>
+        {/* DIVIDER */}
+        <div className="w-px h-6 bg-slate-500/50 dark:bg-white/10 mx-2 rounded-full" />
 
-        {/* Reload App */}
-        <button 
-            onClick={() => window.location.reload()}
-            className={btnClass} 
-            aria-label={t(lang, 'reload')}
-        >
-            <RotateCw size={iconSize} />
+        {/* SETTINGS */}
+        <button onClick={onSettings} className={btnClass} aria-label={t(lang, 'config')}>
+          <Settings size={iconSize} strokeWidth={2} />
         </button>
 
-        {/* Settings */}
-        <button onClick={onSettings} className={btnClass} aria-label={t(lang, 'settingsTitle')}>
-            <Settings size={iconSize} />
-        </button>
-        
-        {/* Fullscreen Trigger */}
+        {/* FULLSCREEN */}
         <button onClick={onFullscreen} className={btnClass} aria-label="Fullscreen">
-            <Maximize size={iconSize} />
+          <Maximize size={iconSize} strokeWidth={2} />
+        </button>
+
+        {/* RELOAD */}
+        <button onClick={handleReload} className={btnClass} aria-label={t(lang, 'reload')}>
+          <RotateCw size={iconSize} strokeWidth={2} />
         </button>
 
       </div>

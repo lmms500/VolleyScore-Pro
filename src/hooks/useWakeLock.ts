@@ -1,56 +1,72 @@
-import { useEffect, useRef, useState, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 
-export const useWakeLock = () => {
+/**
+ * Hook para gerenciar o Screen Wake Lock: previne que a tela se apague.
+ * @param isActive Se true, tenta adquirir o Wake Lock.
+ */
+export const useWakeLock = (isActive: boolean) => {
   const [isLocked, setIsLocked] = useState(false);
-  const wakeLock = useRef<WakeLockSentinel | null>(null);
+  const [wakeLock, setWakeLock] = useState<WakeLockSentinel | null>(null);
 
-  const requestLock = useCallback(async () => {
-    // Verifica se o navegador suporta e se o documento está visível
-    if ('wakeLock' in navigator && document.visibilityState === 'visible') {
+  const requestWakeLock = async () => {
+    if ('wakeLock' in navigator && !isLocked) {
       try {
-        wakeLock.current = await navigator.wakeLock.request('screen');
-        wakeLock.current.addEventListener('release', () => setIsLocked(false));
+        const sentinel = await navigator.wakeLock.request('screen');
+        sentinel.addEventListener('release', () => {
+          console.log('Wake Lock released');
+          setIsLocked(false);
+        });
+        setWakeLock(sentinel);
         setIsLocked(true);
-        console.log('Wake Lock active');
-      } catch (err) {
-        console.warn('Wake Lock request failed:', err);
+        console.log('Wake Lock acquired');
+      } catch (err: any) {
+        console.error(`${err.name}, ${err.message}`);
         setIsLocked(false);
       }
     }
-  }, []);
+  };
 
-  const releaseLock = useCallback(async () => {
-    if (wakeLock.current) {
-      try {
-        await wakeLock.current.release();
-        wakeLock.current = null;
-        setIsLocked(false);
-      } catch (err) {
-        console.warn('Wake Lock release failed:', err);
-      }
+  const releaseWakeLock = () => {
+    if (wakeLock) {
+      wakeLock.release();
+      setWakeLock(null);
+      setIsLocked(false);
     }
-  }, []);
+  };
 
   useEffect(() => {
-    // Tenta ativar ao montar
-    requestLock();
+    if (isActive) {
+      requestWakeLock();
+      
+      // Re-adquire o lock se a tela for re-focada (pode ser perdido ao mudar de aba)
+      const handleVisibilityChange = () => {
+        if (document.visibilityState === 'visible' && isActive && !isLocked) {
+          requestWakeLock();
+        }
+      };
+
+      document.addEventListener('visibilitychange', handleVisibilityChange);
+      document.addEventListener('fullscreenchange', handleWakeLockOnFullscreenChange);
+
+      return () => {
+        releaseWakeLock();
+        document.removeEventListener('visibilitychange', handleVisibilityChange);
+        document.removeEventListener('fullscreenchange', handleWakeLockOnFullscreenChange);
+      };
+    } else {
+      releaseWakeLock();
+    }
     
-    // Reativa se o usuário sair e voltar para o app (troca de abas)
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible') {
-        requestLock();
-      } else {
-        // Opcional: liberar explicitamente quando oculto, embora o navegador geralmente faça isso
-        releaseLock();
+  }, [isActive]);
+  
+  // Função auxiliar para Wake Lock em Fullscreen (se o navegador exigir)
+  const handleWakeLockOnFullscreenChange = () => {
+      // Alguns navegadores soltam o lock ao entrar/sair de fullscreen.
+      // Re-adquirimos se o lock estiver ativo.
+      if (document.fullscreenElement && isActive && !isLocked) {
+          requestWakeLock();
       }
-    };
+  };
 
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    return () => {
-      releaseLock();
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-    };
-  }, [requestLock, releaseLock]);
-
-  return { isLocked, requestLock, releaseLock };
+  return { isLocked, releaseWakeLock, requestWakeLock };
 };

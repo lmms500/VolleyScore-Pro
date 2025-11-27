@@ -1,183 +1,94 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-// Adicionei Plus e Minus aqui na lista de imports
-import { Download, X, Smartphone, ChevronRight, ChevronLeft, Hand, Trophy, Zap, Plus, Minus } from 'lucide-react';
-import { Language } from '../types';
+import { Download, Share, X, Check, Globe } from 'lucide-react';
+import { Language, ThemeMode } from '../types';
+import { t } from '../constants';
+
+// Definindo o tipo para BeforeInstallPromptEvent
+type BeforeInstallPromptEvent = Event & {
+  prompt: () => void;
+  userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>;
+};
 
 interface WelcomeInstallModalProps {
-  isOpen: boolean;
-  onClose: () => void;
+  deferredPrompt: BeforeInstallPromptEvent | null; // CORRIGIDO: Tipagem explícita
+  isInstalled: boolean;
+  isIOS: boolean;
+  isStandalone: boolean;
   onInstall: () => void;
+  onShowIosInstructions: () => void;
   lang: Language;
 }
 
-export const WelcomeInstallModal: React.FC<WelcomeInstallModalProps> = ({ 
-  isOpen, 
-  onClose, 
-  onInstall, 
-  lang 
+export const WelcomeInstallModal: React.FC<WelcomeInstallModalProps> = ({
+  deferredPrompt,
+  isInstalled,
+  isIOS,
+  isStandalone,
+  onInstall,
+  onShowIosInstructions,
+  lang,
 }) => {
-  const [step, setStep] = useState(0);
+  // ... (Restante do código omitido para concisão, mas o arquivo está completo na base)
+  
+  const isOpen = !isInstalled && !isStandalone && (!!deferredPrompt || (isIOS && !localStorage.getItem('ios_pwa_instructed_modal_dismissed')));
+
+  const handleDismiss = () => {
+    if (isIOS) {
+        localStorage.setItem('ios_pwa_instructed_modal_dismissed', 'true');
+    }
+  };
 
   if (!isOpen) return null;
-
-  // Componente visual da Mãozinha animada (definido aqui dentro para acessar no content)
-  const HandGestureIcon = () => (
-    <div className="relative w-12 h-12 flex items-center justify-center">
-        <motion.div
-            animate={{ y: [-10, 10, -10] }}
-            transition={{ repeat: Infinity, duration: 2, ease: "easeInOut" }}
-        >
-            <Hand size={48} className="text-white drop-shadow-md" />
-        </motion.div>
-        {/* Setas indicativas */}
-        <motion.div 
-            className="absolute -right-6 top-0 text-white/80"
-            animate={{ opacity: [0, 1, 0], y: -5 }}
-            transition={{ repeat: Infinity, duration: 2, delay: 0 }}
-        >
-            <Plus size={20} strokeWidth={4} />
-        </motion.div>
-        <motion.div 
-            className="absolute -right-6 bottom-0 text-white/80"
-            animate={{ opacity: [0, 1, 0], y: 5 }}
-            transition={{ repeat: Infinity, duration: 2, delay: 1 }}
-        >
-            <Minus size={20} strokeWidth={4} />
-        </motion.div>
-    </div>
-  );
-
-  const content = {
-    pt: [
-      {
-        title: 'Bem-vindo ao VolleyScore',
-        desc: 'O placar profissional, simples e bonito para seus jogos de vôlei.',
-        icon: <Trophy size={48} className="text-yellow-500" />,
-        color: 'from-yellow-400 to-orange-500'
-      },
-      {
-        title: 'Como Usar',
-        desc: 'Toque ou deslize para CIMA para adicionar ponto. Deslize para BAIXO para remover.',
-        icon: <HandGestureIcon />,
-        color: 'from-indigo-500 to-blue-500'
-      },
-      {
-        title: 'Instalar Aplicativo',
-        desc: 'Instale agora para ter tela cheia, sem distrações e funcionamento 100% offline.',
-        icon: <Download size={48} className="text-white" />,
-        color: 'from-emerald-500 to-teal-500',
-        isInstallStep: true
-      }
-    ],
-    en: [
-      {
-        title: 'Welcome to VolleyScore',
-        desc: 'The professional, simple, and beautiful scoreboard for your volleyball games.',
-        icon: <Trophy size={48} className="text-yellow-500" />,
-        color: 'from-yellow-400 to-orange-500'
-      },
-      {
-        title: 'How to Use',
-        desc: 'Tap or swipe UP to add a point. Swipe DOWN to remove a point.',
-        icon: <HandGestureIcon />,
-        color: 'from-indigo-500 to-blue-500'
-      },
-      {
-        title: 'Install App',
-        desc: 'Install now for full-screen experience, zero distractions, and offline mode.',
-        icon: <Download size={48} className="text-white" />,
-        color: 'from-emerald-500 to-teal-500',
-        isInstallStep: true
-      }
-    ]
-  };
-
-  const steps = content[lang];
-  const currentStep = steps[step];
-
-  const handleNext = () => {
-    if (step < steps.length - 1) setStep(step + 1);
-  };
-
-  const handlePrev = () => {
-    if (step > 0) setStep(step - 1);
-  };
+  
+  const isAndroid = !!deferredPrompt && !isIOS;
+  const isIosSafari = isIOS && !isStandalone;
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-end justify-center sm:items-center bg-black/60 backdrop-blur-sm p-4">
-      <motion.div 
+    <div className="fixed inset-0 z-[70] flex items-end justify-center sm:items-center bg-black/60 backdrop-blur-sm p-4">
+      <motion.div
         initial={{ y: 100, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         exit={{ y: 100, opacity: 0 }}
-        className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-3xl w-full max-w-sm p-0 shadow-2xl relative overflow-hidden flex flex-col"
+        className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-2xl w-full max-w-sm overflow-hidden shadow-2xl"
       >
-        {/* Botão Fechar */}
-        <button 
-            onClick={onClose}
-            className="absolute top-4 right-4 z-20 p-2 bg-black/5 dark:bg-white/10 rounded-full text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white transition-colors"
-        >
-            <X size={20} />
-        </button>
+        <div className="p-6">
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-xl font-bold text-slate-900 dark:text-white">
+              {t(lang, 'installPWA')}
+            </h2>
+            <button 
+                onClick={handleDismiss} 
+                className="text-slate-400 hover:text-slate-900 dark:hover:text-white p-2 rounded-full hover:bg-slate-100 dark:hover:bg-white/5"
+            >
+              <X size={24} />
+            </button>
+          </div>
 
-        {/* Área Visual (Topo) */}
-        <div className={`relative h-48 bg-gradient-to-br ${currentStep.color} flex items-center justify-center`}>
-            <div className="bg-white/20 backdrop-blur-md p-6 rounded-full shadow-lg border border-white/20">
-                {currentStep.icon}
-            </div>
-            {/* Indicadores de Passo */}
-            <div className="absolute bottom-4 flex gap-2">
-                {steps.map((_, i) => (
-                    <div 
-                        key={i} 
-                        className={`h-1.5 rounded-full transition-all duration-300 ${i === step ? 'w-6 bg-white' : 'w-1.5 bg-white/40'}`} 
-                    />
-                ))}
-            </div>
-        </div>
+          <p className="text-sm text-slate-600 dark:text-slate-400 mb-6">
+            {isAndroid && t(lang, 'androidInstallIntro')}
+            {isIosSafari && t(lang, 'iosInstallWelcome')}
+          </p>
 
-        {/* Conteúdo */}
-        <div className="p-6 text-center flex-1 flex flex-col justify-between">
-            <div>
-                <h3 className="text-2xl font-bold text-slate-900 dark:text-white mb-3">
-                    {currentStep.title}
-                </h3>
-                <p className="text-slate-600 dark:text-slate-300 text-sm leading-relaxed mb-6">
-                    {currentStep.desc}
-                </p>
-            </div>
-
-            {/* Botões de Ação */}
-            <div className="flex flex-col gap-3">
-                {currentStep.isInstallStep ? (
-                    <button
-                        onClick={onInstall}
-                        className="w-full py-3.5 bg-slate-900 dark:bg-white text-white dark:text-slate-900 font-bold rounded-xl flex items-center justify-center gap-2 shadow-lg active:scale-95 transition-all"
-                    >
-                        <Download size={20} />
-                        <span>{lang === 'pt' ? 'Instalar Agora' : 'Install Now'}</span>
-                    </button>
-                ) : (
-                    <button
-                        onClick={handleNext}
-                        className="w-full py-3.5 bg-indigo-600 text-white font-bold rounded-xl flex items-center justify-center gap-2 shadow-lg active:scale-95 transition-all"
-                    >
-                        <span>{lang === 'pt' ? 'Próximo' : 'Next'}</span>
-                        <ChevronRight size={20} />
-                    </button>
-                )}
-                
-                {step === 0 ? (
-                    <button onClick={onClose} className="text-xs text-slate-400 font-semibold py-2">
-                        {lang === 'pt' ? 'Pular Tutorial' : 'Skip Tutorial'}
-                    </button>
-                ) : (
-                    <button onClick={handlePrev} className="text-xs text-slate-400 font-semibold py-2 flex items-center justify-center gap-1">
-                        <ChevronLeft size={14} />
-                        <span>{lang === 'pt' ? 'Voltar' : 'Back'}</span>
-                    </button>
-                )}
-            </div>
+          {/* Botão de Ação */}
+          <button
+            onClick={isAndroid ? onInstall : onShowIosInstructions}
+            className={`w-full py-3 font-bold rounded-xl shadow-lg transition-all active:scale-95 flex items-center justify-center gap-2 
+              ${isAndroid ? 'bg-indigo-600 text-white shadow-indigo-500/30 hover:bg-indigo-700' : 'bg-slate-200 text-slate-800 dark:bg-slate-700 dark:text-white hover:bg-slate-300 dark:hover:bg-slate-600'}
+            `}
+          >
+            {isAndroid ? (
+              <>
+                <Download size={20} />
+                {t(lang, 'installApp')}
+              </>
+            ) : (
+              <>
+                <Share size={20} />
+                {t(lang, 'showInstructions')}
+              </>
+            )}
+          </button>
         </div>
       </motion.div>
     </div>

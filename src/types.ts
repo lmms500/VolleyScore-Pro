@@ -1,27 +1,9 @@
 export type TeamId = 'A' | 'B';
 
-export interface SetHistory {
-  setNumber: number;
-  scoreA: number;
-  scoreB: number;
-  winner: TeamId;
-}
-
-export type DeuceType = 'standard' | 'sudden_death_3pt';
-
-export interface GameConfig {
-  maxSets: number;       
-  pointsPerSet: number;  
-  tieBreakPoints: number;
-  hasTieBreak: boolean;  
-  deuceType: DeuceType;  
-}
-
 export interface Player {
   id: string;
   name: string;
-  isFixed: boolean;
-  fixedSide?: TeamId | null;
+  isFixed: boolean; // Se true, nunca será roubado da fila
 }
 
 export interface Team {
@@ -30,25 +12,43 @@ export interface Team {
   players: Player[];
 }
 
-export interface RotationDetail {
-  leavingTeamName: string;
-  enteringTeamName: string;
-  stolenPlayers: string[];
-  fixedPlayers: string[];
-  wentToQueue: string[];
-  donorTeamName?: string;
-  enteringPlayers: string[]; // Novo campo: Jogadores que vêm da fila
+export interface SetHistory {
+  setNumber: number;
+  scoreA: number;
+  scoreB: number;
+  winner: TeamId;
+}
+
+export interface GameConfig {
+  pointsPerSet: number;
+  tieBreakPoints: number;
+  hasTieBreak: boolean;
+  maxSets: number;
+  deuceType: 'standard' | 'sudden_death_3pt';
+}
+
+// Relatório detalhado da operação "Roubo de Fila"
+export interface RotationReport {
+    winnerSide: TeamId;
+    winnerTeamName: string;
+    loserTeamName: string;
+    enteringTeamName: string;
+    
+    // Quem saiu da quadra
+    goingToQueue: string[]; // Jogadores do perdedor que foram pra fila
+    
+    // Quem entrou na quadra
+    enteringPlayers: string[]; // Elenco final do time que entrou
+    
+    // Detalhes do "Crime" (Canibalismo de Fila)
+    wasCompleted: boolean; // Se precisou roubar
+    borrowedPlayers: string[]; // Nomes de quem foi roubado
+    donorTeamName?: string; // De qual time roubou
 }
 
 export interface GameState {
-  teamAName: string; 
+  teamAName: string;
   teamBName: string;
-  teamARoster: Team | null;
-  teamBRoster: Team | null;
-  queue: Team[];
-  
-  rotationReport: RotationDetail | null;
-
   scoreA: number;
   scoreB: number;
   setsA: number;
@@ -57,22 +57,20 @@ export interface GameState {
   history: SetHistory[];
   isMatchOver: boolean;
   matchWinner: TeamId | null;
+  servingTeam: TeamId | null;
   swappedSides: boolean;
-  inSuddenDeath: boolean; 
   config: GameConfig;
+  timeoutsA: number;
+  timeoutsB: number;
+  inSuddenDeath: boolean;
   matchDurationSeconds: number;
   isTimerRunning: boolean;
-  servingTeam: TeamId | null; 
-  timeoutsA: number; 
-  timeoutsB: number; 
+  
+  teamARoster: Team;
+  teamBRoster: Team;
+  queue: Team[];
+  rotationReport: RotationReport | null;
 }
 
-export interface ThemeConfig {
-  primary: string;
-  secondary: string;
-  bg: string;
-  text: string;
-}
-
-export type Language = 'en' | 'pt';
 export type ThemeMode = 'light' | 'dark';
+export type Language = 'pt' | 'en';

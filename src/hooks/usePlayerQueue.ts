@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Player, Team, RotationReport } from '../types';
+import { Player, Team, RotationReport, TeamId } from '../types';
 
-const STORAGE_KEY = 'volleyscore_queue_v11_reborn';
+const STORAGE_KEY = 'volleyscore_queue_v19_preview_fix';
 
 export interface PlayerQueueState {
   courtA: Team;            
@@ -37,205 +37,218 @@ export const usePlayerQueue = (
     setTeamNames(teamA.name, teamB.name);
   };
 
-  // 1. IMPORTAR E GERAR TIMES
-  const importPlayers = useCallback((
-      rawText: string, 
-      teamNameMap: Record<number, string>, 
-      fixedMap: Record<string, 'A' | 'B' | null>
-  ) => {
-    const names = rawText.split(/[\n,]/).map(n => n.trim()).filter(n => n.length > 0);
+  const togglePlayerFixed = useCallback((playerId: string) => {
+    setQueueState(prev => {
+        const toggleInTeam = (team: Team): Team => ({
+            ...team,
+            players: team.players.map(p => 
+                p.id === playerId ? { ...p, isFixed: !p.isFixed } : p
+            )
+        });
+        return {
+            ...prev,
+            courtA: toggleInTeam(prev.courtA),
+            courtB: toggleInTeam(prev.courtB),
+            queue: prev.queue.map(toggleInTeam)
+        };
+    });
+  }, []);
 
-    if (names.length < 2) {
-        alert("Adicione mais jogadores.");
-        return;
-    }
-
-    // Cria objetos de jogadores
-    const allPlayers: Player[] = names.map(name => ({
-        id: name,
-        name: name,
-        isFixed: fixedMap[name] || null
+  const generateTeams = useCallback((
+      namesText: string, 
+      teamNameMap: Record<number, string> = {}, 
+      fixedMap: Record<string, boolean> = {}
+    ) => {
+    const names = namesText.split('\n').map(n => n.trim()).filter(n => n);
+    const newQueue: Team[] = [];
+    const allPlayers: Player[] = names.map((name, i) => ({
+        id: `p-${Date.now()}-${i}`, name, isFixed: !!fixedMap[name]
     }));
 
-    // Distribuição Inicial
-    const fixedA = allPlayers.filter(p => p.isFixed === 'A');
-    const fixedB = allPlayers.filter(p => p.isFixed === 'B');
-    let available = allPlayers.filter(p => !p.isFixed);
-
-    // Preenche Time A
-    const slotsA = 6 - fixedA.length;
-    const fillA = available.slice(0, slotsA);
-    available = available.slice(slotsA);
-    const teamA: Team = {
-        id: 'team-a',
-        name: teamNameMap[0] || 'Time A',
-        players: [...fixedA, ...fillA]
-    };
-
-    // Preenche Time B
-    const slotsB = 6 - fixedB.length;
-    const fillB = available.slice(0, slotsB);
-    available = available.slice(slotsB);
-    const teamB: Team = {
-        id: 'team-b',
-        name: teamNameMap[1] || 'Time B',
-        players: [...fixedB, ...fillB]
-    };
-
-    // Cria Fila (C, D, E...)
-    // Importante: Criar times mesmo incompletos se houver gente sobrando
-    const queueTeams: Team[] = [];
-    if (available.length > 0) {
-        // Ex: 14 sobrando -> 3 times (6, 6, 2)
-        const queueCount = Math.ceil(available.length / 6);
-        
-        for (let i = 0; i < queueCount; i++) {
-            const slice = available.splice(0, 6);
-            queueTeams.push({
-                id: `team-q-${i}`,
-                name: teamNameMap[i + 2] || `Time ${String.fromCharCode(67 + i)}`, // C, D...
-                players: slice
-            });
+    let currentTeam: Player[] = [];
+    allPlayers.forEach(p => {
+        currentTeam.push(p);
+        if (currentTeam.length === 6) {
+            newQueue.push({ id: `t-${Date.now()}-${newQueue.length}`, name: teamNameMap[newQueue.length] || `Time ${newQueue.length + 1}`, players: currentTeam });
+            currentTeam = [];
         }
+    });
+
+    if (currentTeam.length > 0) {
+        newQueue.push({ id: `t-${Date.now()}-${newQueue.length}`, name: teamNameMap[newQueue.length] || `Time ${newQueue.length + 1}`, players: currentTeam });
     }
 
-    const newState = {
-        courtA: teamA,
-        courtB: teamB,
-        queue: queueTeams,
-        nextGameIndex: 1,
-        lastReport: null
-    };
+    const teamA = newQueue.shift() || EMPTY_TEAM('Time A');
+    const teamB = newQueue.shift() || EMPTY_TEAM('Time B');
 
-    setQueueState(newState);
+    setQueueState(prev => ({ ...prev, courtA: teamA, courtB: teamB, queue: newQueue, nextGameIndex: newQueue.length + 3, lastReport: null }));
     syncScoreboardNames(teamA, teamB);
+  }, []);
 
-  }, [setTeamNames]);
+  // --- O CORAÇÃO DA LÓGICA (Separado para poder simular) ---
+  const calculateRotationLogic = (currentState: PlayerQueueState, winnerSide: TeamId) => {
+      if (!currentState.queue || currentState.queue.length === 0) return null;
 
-  // 2. ROTAÇÃO "CANIBAL"
-  const rotateQueue = useCallback((winnerSide: 'A' | 'B') => {
-    setQueueState(prev => {
-      if (prev.queue.length === 0) return prev; // Ninguém na fila, nada acontece
-
-      const winnerTeam = winnerSide === 'A' ? prev.courtA : prev.courtB;
-      const loserTeam = winnerSide === 'A' ? prev.courtB : prev.courtA;
+      const winnerTeam = winnerSide === 'A' ? currentState.courtA : currentState.courtB;
+      const loserTeam = winnerSide === 'A' ? currentState.courtB : currentState.courtA;
       
-      // Pega o primeiro da fila (Time C)
-      const nextTeamUp = { ...prev.queue[0] }; 
-      const remainingQueue = prev.queue.slice(1); // D, E...
+      // 1. Simula Perdedor indo pro final da fila
+      // IMPORTANTE: Clonamos tudo para não afetar o estado original durante a simulação
+      let tempQueue = currentState.queue.map(t => ({ ...t, players: [...t.players] }));
+      const loserTeamClone = { ...loserTeam, players: [...loserTeam.players] };
+      tempQueue.push(loserTeamClone);
 
-      const loserSideId = winnerSide === 'A' ? 'B' : 'A';
+      // 2. O Próximo time sai da frente da fila
+      let enteringTeam = tempQueue[0];
+      let remainingQueue = tempQueue.slice(1);
 
-      // 1. QUEM FICA NA QUADRA (FIXOS DO LADO PERDEDOR)
-      const fixedStaying = loserTeam.players.filter(p => p.isFixed === loserSideId);
-      
-      // 2. QUEM VAI SAIR (NÃO-FIXOS DO PERDEDOR)
-      const leavingPlayers = loserTeam.players.filter(p => p.isFixed !== loserSideId);
+      // 3. Lógica de Roubo (Cannibalism)
+      const borrowedPlayerNames: string[] = [];
+      let donorName = '';
 
-      // 3. QUEM VEM DA FILA
-      const playersFromQueue = nextTeamUp.players;
-
-      // 4. PRECISA COMPLETAR? (Canibalismo)
-      // O novo time será: [Fixos que ficaram] + [Galera da Fila] + [Roubados]
-      const currentCount = fixedStaying.length + playersFromQueue.length;
-      const needed = 6 - currentCount;
-
-      let recycledPlayers: Player[] = []; // Roubados
-      let playersGoingToQueue: Player[] = []; // Sobraram e vão pra fila
-
-      if (needed > 0) {
-          // FALTOU GENTE NO TIME DA FILA!
-          // Rouba os ÚLTIMOS da lista de quem ia sair
-          const availableToSteal = leavingPlayers.length;
-          const stealCount = Math.min(needed, availableToSteal);
+      // Enquanto o time que entra não tiver 6 jogadores e houver times na fila para roubar
+      while (enteringTeam.players.length < 6 && remainingQueue.length > 0) {
+          const needed = 6 - enteringTeam.players.length;
           
-          if (stealCount > 0) {
-              recycledPlayers = leavingPlayers.slice(availableToSteal - stealCount);
-              playersGoingToQueue = leavingPlayers.slice(0, availableToSteal - stealCount);
+          // Sempre rouba do PRÓXIMO da fila (índice 0 da remainingQueue)
+          const donorTeamIndex = 0;
+          const donorTeam = remainingQueue[donorTeamIndex];
+          
+          // Filtra quem pode ser roubado (Não Fixos)
+          const availableToSteal = donorTeam.players.filter(p => !p.isFixed);
+          const fixedOnDonor = donorTeam.players.filter(p => p.isFixed);
+
+          const toSteal = availableToSteal.slice(0, needed);
+          const leftOnDonor = availableToSteal.slice(needed);
+
+          if (toSteal.length > 0) {
+              enteringTeam.players = [...enteringTeam.players, ...toSteal];
+              toSteal.forEach(p => borrowedPlayerNames.push(p.name));
+              if (!donorName) donorName = donorTeam.name;
+
+              // Atualiza o time doador na fila simulada
+              remainingQueue[donorTeamIndex] = {
+                  ...donorTeam,
+                  players: [...fixedOnDonor, ...leftOnDonor]
+              };
+          } else {
+              break; // Se só tem fixos, para de roubar deste time
           }
-      } else {
-          // Ninguém foi roubado, todo mundo vai pra fila
-          playersGoingToQueue = leavingPlayers;
       }
 
-      // 5. MONTAR O NOVO TIME TITULAR
-      const newTeamOnCourtPlayers = [...fixedStaying, ...playersFromQueue, ...recycledPlayers];
-      
-      const newTeamOnCourt: Team = {
-          id: nextTeamUp.id, // Mantém ID original (ex: time-c)
-          name: nextTeamUp.name, // Mantém nome (ex: Time C)
-          players: newTeamOnCourtPlayers
-      };
-
-      // 6. MONTAR O TIME QUE VAI PRA FILA (Ex: Time B, possivelmente desfalcado)
-      const loserToQueue: Team = {
-          id: loserTeam.id,
-          name: loserTeam.name,
-          players: playersGoingToQueue
-      };
-
-      // ATUALIZAR A FILA
-      // A fila agora é: [Resto da fila (D...)] + [Perdedor (B)]
-      const newQueue = [...remainingQueue];
-      
-      // Só adiciona o time perdedor na fila se sobrou alguém ou se queremos manter a rotação de nomes
-      // Para o sistema funcionar como 4 times rotativos (A,B,C,D), o time tem que ir pro final mesmo se ficar com 0 pessoas temporariamente?
-      // Sim, senão o nome "Time B" some. 
-      newQueue.push(loserToQueue);
-
-      // 7. ATUALIZAR QUADRA
+      // 4. Monta o resultado
       let newCourtA, newCourtB;
       if (winnerSide === 'A') {
           newCourtA = winnerTeam;
-          newCourtB = newTeamOnCourt;
+          newCourtB = enteringTeam;
       } else {
           newCourtB = winnerTeam;
-          newCourtA = newTeamOnCourt;
+          newCourtA = enteringTeam;
       }
 
-      // Relatório
       const report: RotationReport = {
           winnerSide,
           winnerTeamName: winnerTeam.name,
           loserTeamName: loserTeam.name,
-          enteringTeamName: nextTeamUp.name,
-          action: recycledPlayers.length > 0 ? 'cannibalized' : 'swap',
-          
-          fixedStaying: fixedStaying.map(p => p.name),
-          comingFromQueue: playersFromQueue.map(p => p.name),
-          recycledFromLoser: recycledPlayers.map(p => p.name),
-          goingToQueue: playersGoingToQueue.map(p => p.name)
+          enteringTeamName: enteringTeam.name,
+          goingToQueue: loserTeam.players.map(p => p.name),
+          enteringPlayers: enteringTeam.players.map(p => p.name),
+          wasCompleted: borrowedPlayerNames.length > 0,
+          borrowedPlayers: borrowedPlayerNames,
+          donorTeamName: donorName
       };
-
-      syncScoreboardNames(newCourtA, newCourtB);
 
       return {
-          courtA: newCourtA,
-          courtB: newCourtB,
-          queue: newQueue,
+          newCourtA,
+          newCourtB,
+          newQueue: remainingQueue,
+          report
+      };
+  };
+
+  // --- NOVA FUNÇÃO: SIMULA O FUTURO PARA O MODAL ---
+  const getRotationPreview = useCallback((winnerSide: TeamId): RotationReport | null => {
+      const result = calculateRotationLogic(queueState, winnerSide);
+      return result ? result.report : null;
+  }, [queueState]); // Depende do estado atual para calcular
+
+  // --- FUNÇÃO REAL: APLICA A ROTAÇÃO ---
+  const rotateTeams = useCallback((winnerSide: TeamId) => {
+    setQueueState(prev => {
+      const result = calculateRotationLogic(prev, winnerSide);
+      if (!result) return prev; // Se não tem fila, não faz nada
+
+      syncScoreboardNames(result.newCourtA, result.newCourtB);
+
+      return {
+          courtA: result.newCourtA,
+          courtB: result.newCourtB,
+          queue: result.newQueue,
           nextGameIndex: prev.nextGameIndex + 1,
-          lastReport: report
+          lastReport: result.report
       };
     });
-  }, [setTeamNames]);
+  }, [syncScoreboardNames]);
 
   const resetQueue = useCallback(() => {
-    setQueueState({
-        courtA: EMPTY_TEAM('Time A'),
-        courtB: EMPTY_TEAM('Time B'),
-        queue: [],
-        nextGameIndex: 1,
-        lastReport: null
+    setQueueState({ courtA: EMPTY_TEAM('Time A'), courtB: EMPTY_TEAM('Time B'), queue: [], nextGameIndex: 1, lastReport: null });
+  }, []);
+
+  const updateRosters = useCallback((teamA: Team | null, teamB: Team | null, queue: Team[]) => {
+      setQueueState(prev => {
+          const newState = { ...prev, courtA: teamA || prev.courtA, courtB: teamB || prev.courtB, queue: queue };
+          if (teamA && teamB) syncScoreboardNames(teamA, teamB);
+          return newState;
+      });
+  }, []);
+  
+  const updateTeamName = useCallback((teamId: string, newName: string) => {
+    setQueueState(prev => {
+        const update = (t: Team) => t.id === teamId ? { ...t, name: newName } : t;
+        const newA = update(prev.courtA);
+        const newB = update(prev.courtB);
+        if (newA !== prev.courtA || newB !== prev.courtB) syncScoreboardNames(newA, newB);
+        return { ...prev, courtA: newA, courtB: newB, queue: prev.queue.map(update) };
     });
   }, []);
 
-  const hasQueue = queueState.queue.length > 0;
+  const movePlayer = useCallback((playerId: string, sourceTeamId: string, targetTeamId: string) => {
+    setQueueState(prev => {
+        let playerToMove: Player | undefined;
+        const removeFromTeam = (team: Team): Team => {
+            const p = team.players.find(pl => pl.id === playerId);
+            if (p) playerToMove = p;
+            return { ...team, players: team.players.filter(pl => pl.id !== playerId) };
+        };
+        const newCourtA = sourceTeamId === prev.courtA.id || sourceTeamId === 'A' ? removeFromTeam(prev.courtA) : prev.courtA;
+        const newCourtB = sourceTeamId === prev.courtB.id || sourceTeamId === 'B' ? removeFromTeam(prev.courtB) : prev.courtB;
+        const newQueue = prev.queue.map(t => sourceTeamId === t.id ? removeFromTeam(t) : t);
+        if (!playerToMove) return prev; 
+        const addToTeam = (team: Team): Team => ({ ...team, players: [...team.players, playerToMove!] });
+        const finalCourtA = targetTeamId === newCourtA.id || targetTeamId === 'A' ? addToTeam(newCourtA) : newCourtA;
+        const finalCourtB = targetTeamId === newCourtB.id || targetTeamId === 'B' ? addToTeam(newCourtB) : newCourtB;
+        const finalQueue = newQueue.map(t => targetTeamId === t.id ? addToTeam(t) : t);
+        return { ...prev, courtA: finalCourtA, courtB: finalCourtB, queue: finalQueue };
+    });
+  }, []);
+
+  const removePlayer = useCallback((playerId: string, sourceTeamId: string) => {
+      setQueueState(prev => {
+        const removeFromTeam = (team: Team): Team => ({ ...team, players: team.players.filter(pl => pl.id !== playerId) });
+        return { ...prev, courtA: removeFromTeam(prev.courtA), courtB: removeFromTeam(prev.courtB), queue: prev.queue.map(removeFromTeam) };
+      });
+  }, []);
 
   return {
     queueState,
-    importPlayers,
-    rotateQueue,
+    generateTeams,
+    rotateTeams,
     resetQueue,
-    hasQueue
+    updateRosters,
+    updateTeamName,
+    movePlayer,
+    removePlayer,
+    togglePlayerFixed,
+    getRotationPreview // EXPORTADO
   };
 };

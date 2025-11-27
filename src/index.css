@@ -3,49 +3,70 @@
 @tailwind utilities;
 
 @layer base {
-  html {
-    /* Garante que a altura seja exata e proíbe scroll no html */
-    height: 100dvh;
-    width: 100%;
-    overflow: hidden;
-    -webkit-tap-highlight-color: transparent;
+  /* Garante que o Dark Mode use a cor de fundo OLED black */
+  .dark {
+    background-color: #000000;
   }
 
-  body {
-    /* Força o corpo a ocupar exatamente o espaço visível */
-    height: 100dvh;
-    width: 100%;
-    overflow: hidden;
-    
-    /* CRUCIAL: Remove o efeito elástico (bounce) que causa cortes no iOS */
-    overscroll-behavior: none;
-    position: fixed; /* Trava extra para evitar scroll indesejado */
-    inset: 0;
+  /* Textura de Ruído (Noise Texture) - Versão estável (bg-image) */
+  .texture-noise {
+      position: relative;
+      overflow: hidden;
   }
 
-  #root {
-    height: 100%;
-    width: 100%;
-    isolation: isolate;
+  .texture-noise::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      z-index: 0;
+      /* Ruído SVG de baixo impacto com opacidade MUITO baixa */
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.02'/%3E%3C/svg%3E");
+      background-size: 200px;
+      opacity: 0.02; /* Mantido em 0.02 */
+      pointer-events: none;
+      mix-blend-mode: soft-light;
+  }
+  
+  .dark .texture-noise::before {
+      opacity: 0.02; /* Mantido em 0.02 */
+      mix-blend-mode: overlay;
   }
 }
 
-/* Utilitário para esconder barras de rolagem mas manter funcionalidade */
-@layer utilities {
-  .no-scrollbar::-webkit-scrollbar {
-    display: none;
-  }
-  .no-scrollbar {
-    -ms-overflow-style: none;
-    scrollbar-width: none;
-  }
+/* Utilitário para forçar contexto de empilhamento/renderização isolada */
+.will-change-transform {
+    will-change: transform;
+}
 
-  /* Máscaras de gradiente para listas */
-  .mask-gradient-right {
-    mask-image: linear-gradient(to right, black 85%, transparent 100%);
-  }
-  
-  .mask-gradient-y {
-    mask-image: linear-gradient(to bottom, transparent, black 15%, black 85%, transparent);
-  }
+/* Prevent pull-to-refresh on mobile to feel like a native app */
+body {
+  overscroll-behavior-y: contain;
+  -webkit-tap-highlight-color: transparent;
+}
+/* Custom utility for touching inputs */
+.touch-action-manipulation {
+  touch-action: manipulation;
+}
+/* Hide Scrollbar but keep functionality */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.custom-scrollbar::-webkit-scrollbar {
+  width: 4px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background-color: rgba(156, 163, 175, 0.3);
+  border-radius: 20px;
+}
+/* Gradient mask for history bar */
+.mask-gradient-right {
+  mask-image: linear-gradient(to right, black 85%, transparent 100%);
+  -webkit-mask-image: linear-gradient(to right, black 85%, transparent 100%);
 }

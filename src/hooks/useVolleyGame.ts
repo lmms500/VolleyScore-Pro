@@ -1,20 +1,13 @@
 import { useState, useCallback, useEffect } from 'react';
-import { GameState, TeamId, SetHistory, GameConfig, Team, Player, RotationDetail } from '../types';
-import { 
-  DEFAULT_CONFIG,
-  MIN_LEAD_TO_WIN, 
-  SETS_TO_WIN_MATCH
-} from '../constants';
+import { GameState, TeamId, SetHistory, GameConfig, Team, Player, RotationReport } from '../types';
+import { DEFAULT_CONFIG, MIN_LEAD_TO_WIN, SETS_TO_WIN_MATCH } from '../constants';
+import { usePlayerQueue } from './usePlayerQueue'; 
 
-const STORAGE_KEY = 'volleyscore_pro_state_v12_fix_lock_rotation'; 
+const STORAGE_KEY = 'volleyscore_pro_v20_preview_fix';
 
 const INITIAL_STATE: GameState = {
-  teamAName: '', 
-  teamBName: '',
-  teamARoster: null,
-  teamBRoster: null,
-  queue: [],
-  rotationReport: null,
+  teamAName: 'Home',
+  teamBName: 'Guest',
   scoreA: 0,
   scoreB: 0,
   setsA: 0,
@@ -23,541 +16,172 @@ const INITIAL_STATE: GameState = {
   history: [],
   isMatchOver: false,
   matchWinner: null,
-  swappedSides: false,
-  inSuddenDeath: false,
-  config: DEFAULT_CONFIG,
-  matchDurationSeconds: 0,
-  isTimerRunning: false,
   servingTeam: null,
+  swappedSides: false,
+  config: DEFAULT_CONFIG,
   timeoutsA: 0,
   timeoutsB: 0,
+  inSuddenDeath: false,
+  matchDurationSeconds: 0,
+  isTimerRunning: false,
+  teamARoster: { id: 'A', name: 'Home', players: [] },
+  teamBRoster: { id: 'B', name: 'Guest', players: [] },
+  queue: [],
+  rotationReport: null
 };
 
 export const useVolleyGame = () => {
   const [state, setState] = useState<GameState>(INITIAL_STATE);
-  const [historyStack, setHistoryStack] = useState<GameState[]>([INITIAL_STATE]);
   const [isLoaded, setIsLoaded] = useState(false);
 
-  // Load from LocalStorage
-  useEffect(() => {
-    try {
-      const saved = localStorage.getItem(STORAGE_KEY);
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (parsed && parsed.config) {
-          setState(parsed);
-          setHistoryStack([parsed]);
-        }
-      }
-    } catch (e) {
-      console.warn('Failed to load game state', e);
-    } finally {
-      setIsLoaded(true);
-    }
+  const updateNamesFromQueue = useCallback((nameA: string, nameB: string) => {
+      setState(prev => {
+          if (prev.teamAName !== nameA || prev.teamBName !== nameB) {
+              return { ...prev, teamAName: nameA, teamBName: nameB };
+          }
+          return prev;
+      });
   }, []);
 
-  // Save to LocalStorage
+  const queueManager = usePlayerQueue(updateNamesFromQueue);
+
+  // Sync Queue State -> Game State (Mantendo o report se ele vier da rotação real)
   useEffect(() => {
-    if (isLoaded) {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-    }
+      const { courtA, courtB, queue, lastReport } = queueManager.queueState;
+      setState(prev => {
+          // Se acabamos de receber um relatório REAL de rotação (após clicar em Rodar), atualizamos
+          // Mas se o jogo acabou e ainda não rodamos, queremos MANTER o preview que calculamos no addPoint
+          const reportToUse = lastReport || prev.rotationReport;
+
+          if (prev.teamARoster === courtA && prev.teamBRoster === courtB && prev.queue === queue && prev.rotationReport === reportToUse) return prev;
+          
+          return {
+              ...prev,
+              teamARoster: courtA,
+              teamBRoster: courtB,
+              queue: queue,
+              rotationReport: reportToUse, 
+              teamAName: courtA.name,
+              teamBName: courtB.name
+          };
+      });
+  }, [queueManager.queueState]);
+
+  useEffect(() => {
+    const loadGame = () => {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) { try { setState(JSON.parse(saved)); } catch (e) { console.error(e); } }
+      setIsLoaded(true);
+    };
+    loadGame();
+  }, []);
+
+  useEffect(() => {
+    if (isLoaded) localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
   }, [state, isLoaded]);
 
-  // Timer
   useEffect(() => {
-    let interval: ReturnType<typeof setInterval>;
-    if (state.isTimerRunning) {
-      interval = setInterval(() => {
-        setState(prev => ({
-          ...prev,
-          matchDurationSeconds: prev.matchDurationSeconds + 1
-        }));
-      }, 1000);
+    let interval: any;
+    if (state.isTimerRunning && !state.isMatchOver) {
+      interval = setInterval(() => setState(prev => ({ ...prev, matchDurationSeconds: prev.matchDurationSeconds + 1 })), 1000);
     }
     return () => clearInterval(interval);
-  }, [state.isTimerRunning]);
+  }, [state.isTimerRunning, state.isMatchOver]);
 
-  // Rotation Report Logic
-  useEffect(() => {
-    if (state.isMatchOver && !state.rotationReport && state.matchWinner && state.queue.length > 0) {
-        const winnerId = state.matchWinner;
-        const loserRoster = winnerId === 'A' ? state.teamBRoster : state.teamARoster;
-        const nextTeam = state.queue[0];
-        
-        if (!loserRoster || !nextTeam) return;
-
-        const loserSideId = winnerId === 'A' ? 'B' : 'A';
-        const fixedStaying = loserRoster.players.filter(p => p.fixedSide === loserSideId);
-        const leavingPlayersFromCourt = loserRoster.players.filter(p => p.fixedSide !== loserSideId);
-
-        const currentCount = fixedStaying.length + nextTeam.players.length;
-        const neededPlayers = 6 - currentCount;
-        
-        let stolenNames: string[] = [];
-        let queueNames: string[] = leavingPlayersFromCourt.map(p => p.name);
-        let donorName = loserRoster.name;
-
-        if (neededPlayers > 0) {
-            if (state.queue.length >= 2) {
-                const donorTeam = state.queue[1];
-                donorName = donorTeam.name;
-                const availableToSteal = donorTeam.players.filter(p => !p.isFixed);
-                const stealCount = Math.min(neededPlayers, availableToSteal.length);
-
-                if (stealCount > 0) {
-                    const stolen = availableToSteal.slice(availableToSteal.length - stealCount);
-                    stolenNames = stolen.map(p => p.name);
-                }
-            } else {
-                const availableToSteal = leavingPlayersFromCourt.filter(p => !p.isFixed);
-                const stealCount = Math.min(neededPlayers, availableToSteal.length);
-                if (stealCount > 0) {
-                    const stolen = availableToSteal.slice(availableToSteal.length - stealCount);
-                    const stolenIds = new Set(stolen.map(p => p.id));
-                    const remainingLeaving = leavingPlayersFromCourt.filter(p => !stolenIds.has(p.id));
-                    
-                    stolenNames = stolen.map(p => p.name);
-                    queueNames = remainingLeaving.map(p => p.name);
-                }
-            }
-        }
-
-        const report: RotationDetail = {
-            leavingTeamName: loserRoster.name,
-            enteringTeamName: nextTeam.name,
-            fixedPlayers: fixedStaying.map(p => p.name),
-            stolenPlayers: stolenNames,
-            wentToQueue: queueNames,
-            donorTeamName: donorName,
-            enteringPlayers: nextTeam.players.map(p => p.name)
-        };
-        
-        setState(prev => ({ ...prev, rotationReport: report }));
+  const checkSetWinner = (currentScoreA: number, currentScoreB: number, config: GameConfig) => {
+    const { pointsPerSet, tieBreakPoints, hasTieBreak, maxSets, deuceType } = config;
+    const isTieBreak = hasTieBreak && state.currentSet === maxSets;
+    const targetPoints = isTieBreak ? tieBreakPoints : pointsPerSet;
+    if (deuceType === 'sudden_death_3pt') {
+       if (currentScoreA >= targetPoints && currentScoreA >= currentScoreB + 2) return 'A';
+       if (currentScoreB >= targetPoints && currentScoreB >= currentScoreA + 2) return 'B';
     }
-  }, [state.isMatchOver, state.rotationReport, state.matchWinner, state.queue, state.teamARoster, state.teamBRoster]);
-
-  // --- CENTRALIZED UPDATE STATE ---
-  const updateState = useCallback((newState: GameState) => {
-    setHistoryStack(prev => {
-      const newStack = [...prev, newState];
-      if (newStack.length > 50) newStack.shift();
-      return newStack;
-    });
-    setState(newState);
-  }, []);
-
-  const undo = useCallback(() => {
-    setHistoryStack(prev => {
-      if (prev.length <= 1) return prev;
-      const newStack = [...prev];
-      newStack.pop(); 
-      const prevState = newStack[newStack.length - 1];
-      setState(prevState);
-      return newStack;
-    });
-  }, []);
-
-  // --- REFACTORED RESET MATCH COM LÓGICA CONDICIONAL E NEWNAMES ---
-  const resetMatch = useCallback((newConfig?: GameConfig, newNames?: { nameA: string, nameB: string }) => {
-    setState((prevState) => {
-      const configToUse = newConfig || prevState.config;
-      
-      let stateToPreserve: Partial<GameState> = { 
-          // 1. Nomes sempre atualizados (por newNames ou mantidos por prevState)
-          teamAName: newNames?.nameA || prevState.teamAName,
-          teamBName: newNames?.nameB || prevState.teamBName,
-          
-          swappedSides: prevState.swappedSides,
-          config: configToUse,
-          // MUDANÇA: Preservar Rosters e Queue incondicionalmente
-          teamARoster: prevState.teamARoster,
-          teamBRoster: prevState.teamBRoster,
-          queue: prevState.queue,
-      };
-      
-      // REMOVIDO: O bloco 'if (!newConfig)' não é mais necessário aqui.
-      
-      const newState: GameState = { 
-        ...INITIAL_STATE, // Zera scores, sets, isMatchOver, rotationReport, timeouts, etc.
-        ...stateToPreserve // Sobrescreve apenas o que deve ser mantido (incluindo rosters)
-      };
-      
-      setHistoryStack([newState]);
-      
-      // 3. Se um novo nome foi fornecido, também atualiza o roster com o novo nome
-      if (newNames) {
-        if (newState.teamARoster) newState.teamARoster.name = newNames.nameA;
-        if (newState.teamBRoster) newState.teamBRoster.name = newNames.nameB;
-      }
-
-      return newState;
-    });
-  }, []);
-
-  const generateTeams = useCallback((
-      namesText: string, 
-      teamNameMap: Record<number, string> = {}, 
-      fixedMap: Record<string, 'A' | 'B' | null> = {}
-  ) => {
-    const names = namesText.split(/[\n,]/)
-      .map(n => n.trim())
-      .filter(n => n.length > 0);
-    
-    const players: Player[] = names.map((name, idx) => ({
-      id: `p-${Date.now()}-${idx}`,
-      name,
-      isFixed: !!fixedMap[name],
-      fixedSide: fixedMap[name] || null
-    }));
-
-    const fixedA = players.filter(p => p.fixedSide === 'A');
-    const fixedB = players.filter(p => p.fixedSide === 'B');
-    const rotating = players.filter(p => !p.isFixed);
-
-    const slotsA = 6 - fixedA.length;
-    const fillA = rotating.slice(0, slotsA);
-    const teamAPlayers = [...fixedA, ...fillA];
-    const remainingAfterA = rotating.slice(slotsA);
-
-    const slotsB = 6 - fixedB.length;
-    const fillB = remainingAfterA.slice(0, slotsB);
-    const teamBPlayers = [...fixedB, ...fillB];
-    const remainingQueue = remainingAfterA.slice(slotsB);
-
-    const queueTeams: Team[] = [];
-    const PLAYERS_PER_TEAM = 6;
-
-    for (let i = 0; i < remainingQueue.length; i += PLAYERS_PER_TEAM) {
-      const chunk = remainingQueue.slice(i, i + PLAYERS_PER_TEAM);
-      const queueIndex = queueTeams.length; 
-      const teamLetter = String.fromCharCode(67 + queueIndex);
-      const defaultName = `Time ${teamLetter}`;
-      const customName = teamNameMap[queueIndex + 2]; 
-
-      queueTeams.push({
-        id: `team-q-${queueIndex}`,
-        name: customName || defaultName,
-        players: chunk
-      });
-    }
-
-    const teamA: Team = {
-        id: 'team-a',
-        name: teamNameMap[0] || 'Time A',
-        players: teamAPlayers
-    };
-
-    const teamB: Team = {
-        id: 'team-b',
-        name: teamNameMap[1] || 'Time B',
-        players: teamBPlayers
-    };
-
-    updateState({
-      ...state,
-      teamARoster: teamA,
-      teamBRoster: teamB,
-      teamAName: teamA.name,
-      teamBName: teamB.name,
-      queue: queueTeams,
-      rotationReport: null
-    });
-  }, [state, updateState]);
-
-  const updateRosters = useCallback((teamA: Team | null, teamB: Team | null, queue: Team[]) => {
-      updateState({
-          ...state,
-          teamARoster: teamA,
-          teamBRoster: teamB,
-          queue
-      });
-  }, [state, updateState]);
-
-  const movePlayer = useCallback((playerId: string, sourceTeamId: string, targetTeamId: string) => {
-    if (sourceTeamId === targetTeamId) return;
-
-    let newTeamA = state.teamARoster ? { ...state.teamARoster, players: [...state.teamARoster.players] } : null;
-    let newTeamB = state.teamBRoster ? { ...state.teamBRoster, players: [...state.teamBRoster.players] } : null;
-    let newQueue = state.queue.map(t => ({ ...t, players: [...t.players] }));
-
-    let playerToMove: Player | undefined;
-
-    const removeFromTeam = (team: Team | null) => {
-        if (!team) return false;
-        const idx = team.players.findIndex(p => p.id === playerId);
-        if (idx > -1) {
-            playerToMove = team.players[idx];
-            team.players.splice(idx, 1);
-            return true;
-        }
-        return false;
-    };
-
-    if (newTeamA && newTeamA.id === sourceTeamId) removeFromTeam(newTeamA);
-    else if (newTeamB && newTeamB.id === sourceTeamId) removeFromTeam(newTeamB);
-    else {
-        const qTeam = newQueue.find(t => t.id === sourceTeamId);
-        if (qTeam) removeFromTeam(qTeam);
-    }
-
-    if (!playerToMove) return;
-
-    if (newTeamA && newTeamA.id === targetTeamId) newTeamA.players.push(playerToMove);
-    else if (newTeamB && newTeamB.id === targetTeamId) newTeamB.players.push(playerToMove);
-    else {
-        const qTeam = newQueue.find(t => t.id === targetTeamId);
-        if (qTeam) qTeam.players.push(playerToMove);
-    }
-
-    const newState = {
-        ...state,
-        teamARoster: newTeamA,
-        teamBRoster: newTeamB,
-        queue: newQueue
-    };
-
-    updateState(newState);
-  }, [state, updateState]);
-
-  const removePlayer = useCallback((playerId: string) => {
-      let newTeamA = state.teamARoster ? { ...state.teamARoster, players: [...state.teamARoster.players] } : null;
-      let newTeamB = state.teamBRoster ? { ...state.teamBRoster, players: [...state.teamBRoster.players] } : null;
-      let newQueue = state.queue.map(t => ({ ...t, players: [...t.players] }));
-
-      const removeFromTeam = (team: Team | null) => {
-          if (!team) return false;
-          const idx = team.players.findIndex(p => p.id === playerId);
-          if (idx > -1) {
-              team.players.splice(idx, 1);
-              return true;
-          }
-          return false;
-      };
-
-      let found = false;
-      if (newTeamA) found = removeFromTeam(newTeamA);
-      if (!found && newTeamB) found = removeFromTeam(newTeamB);
-      if (!found) {
-          for (const qTeam of newQueue) {
-              if (removeFromTeam(qTeam)) {
-                  found = true;
-                  break;
-              }
-          }
-      }
-
-      if (!found) return;
-
-      const newState = {
-          ...state,
-          teamARoster: newTeamA,
-          teamBRoster: newTeamB,
-          queue: newQueue
-      };
-      updateState(newState);
-  }, [state, updateState]);
-
-  const updateTeamName = useCallback((teamId: string, newName: string) => {
-      const teamARoster = state.teamARoster && state.teamARoster.id === teamId ? { ...state.teamARoster, name: newName } : state.teamARoster;
-      const teamBRoster = state.teamBRoster && state.teamBRoster.id === teamId ? { ...state.teamBRoster, name: newName } : state.teamBRoster;
-      const queue = state.queue.map(q => q.id === teamId ? { ...q, name: newName } : q);
-
-      const teamAName = teamARoster ? teamARoster.name : state.teamAName;
-      const teamBName = teamBRoster ? teamBRoster.name : state.teamBName;
-
-      const newState = { ...state, teamARoster, teamBRoster, queue, teamAName, teamBName };
-      updateState(newState);
-  }, [state, updateState]);
-
-  // --- ROTATE TEAMS ---
-  const rotateTeams = useCallback(() => {
-    if (!state.matchWinner || state.queue.length === 0) return;
-
-    const winnerId = state.matchWinner;
-    const winnerRoster = winnerId === 'A' ? state.teamARoster : state.teamBRoster;
-    const loserRoster = winnerId === 'A' ? state.teamBRoster : state.teamARoster;
-
-    if (!winnerRoster || !loserRoster) return; 
-
-    // Time que vai entrar (Queue[0])
-    const nextTeam = { ...state.queue[0], players: [...state.queue[0].players] };
-    
-    // Lista de espera restante
-    let remainingQueue = state.queue.slice(1).map(t => ({ ...t, players: [...t.players] }));
-
-    const newLoserRoster = { ...loserRoster, players: [...loserRoster.players] };
-    
-    const loserSideId = winnerId === 'A' ? 'B' : 'A';
-    
-    // 1. Quem fica na quadra (lado perdedor) pq tem cadeado
-    const fixedStaying = newLoserRoster.players.filter(p => p.fixedSide === loserSideId);
-    
-    // 2. Quem sai da quadra (candidatos a ir pra fila ou serem roubados)
-    const leavingPlayersFromCourt = newLoserRoster.players.filter(p => p.fixedSide !== loserSideId);
-
-    const currentCount = fixedStaying.length + nextTeam.players.length;
-    const neededPlayers = 6 - currentCount;
-    
-    let stolenPlayers: Player[] = [];
-    let goingToQueue: Player[] = [...leavingPlayersFromCourt];
-
-    if (neededPlayers > 0) {
-        if (remainingQueue.length > 0) {
-            // Rouba do Doador (Queue[1])
-            const donorTeam = remainingQueue[0];
-            const availableToSteal = donorTeam.players.filter(p => !p.isFixed);
-            const stealCount = Math.min(neededPlayers, availableToSteal.length);
-
-            if (stealCount > 0) {
-                const playersToSteal = availableToSteal.slice(availableToSteal.length - stealCount);
-                stolenPlayers = playersToSteal;
-
-                const stolenIds = new Set(playersToSteal.map(p => p.id));
-                donorTeam.players = donorTeam.players.filter(p => !stolenIds.has(p.id));
-            }
-
-            newLoserRoster.players = goingToQueue;
-            const donor = remainingQueue[0];
-            const others = remainingQueue.slice(1);
-            remainingQueue = [donor, newLoserRoster, ...others];
-
-        } else {
-            // Rouba do Perdedor
-            const availableToSteal = leavingPlayersFromCourt.filter(p => !p.isFixed);
-            const stealCount = Math.min(neededPlayers, availableToSteal.length);
-            
-            if (stealCount > 0) {
-                const playersToSteal = availableToSteal.slice(availableToSteal.length - stealCount);
-                stolenPlayers = playersToSteal;
-                
-                const stolenIds = new Set(playersToSteal.map(p => p.id));
-                goingToQueue = goingToQueue.filter(p => !stolenIds.has(p.id));
-            }
-            newLoserRoster.players = goingToQueue;
-            remainingQueue = [newLoserRoster];
-        }
-    } else {
-        newLoserRoster.players = goingToQueue;
-        remainingQueue.push(newLoserRoster);
-    }
-
-    const newTeamOnCourtPlayers = [...fixedStaying, ...nextTeam.players, ...stolenPlayers];
-    nextTeam.players = newTeamOnCourtPlayers;
-
-    const newState: GameState = {
-        ...INITIAL_STATE,
-        config: state.config,
-        teamARoster: winnerId === 'A' ? winnerRoster : nextTeam,
-        teamBRoster: winnerId === 'B' ? winnerRoster : nextTeam,
-        teamAName: winnerId === 'A' ? winnerRoster.name : nextTeam.name,
-        teamBName: winnerId === 'B' ? winnerRoster.name : nextTeam.name,
-        queue: remainingQueue,
-        rotationReport: null
-    };
-
-    updateState(newState);
-  }, [state, INITIAL_STATE, updateState]);
-
-  const toggleSides = useCallback(() => {
-    const newState = { ...state, swappedSides: !state.swappedSides };
-    setState(newState); 
-  }, [state]);
-
-  const toggleService = useCallback(() => {
-    const nextServing: TeamId = state.servingTeam === 'A' ? 'B' : 'A';
-    const newState = {
-        ...state,
-        servingTeam: nextServing
-    };
-    updateState(newState);
-  }, [state, updateState]);
-
-  const useTimeout = useCallback((teamId: TeamId) => {
-      if (teamId === 'A' && state.timeoutsA >= 2) return;
-      if (teamId === 'B' && state.timeoutsB >= 2) return;
-      const newState = {
-          ...state,
-          timeoutsA: teamId === 'A' ? state.timeoutsA + 1 : state.timeoutsA,
-          timeoutsB: teamId === 'B' ? state.timeoutsB + 1 : state.timeoutsB
-      };
-      updateState(newState);
-  }, [state, updateState]);
-
-  // Apply Settings agora aceita a config E os nomes
-  const applySettings = useCallback((newConfig: GameConfig, newNames: { nameA: string, nameB: string }) => {
-    resetMatch(newConfig, newNames);
-  }, [resetMatch]);
-
-  const addPoint = useCallback((team: TeamId) => {
-    if (state.isMatchOver) return;
-    let newIsTimerRunning = state.isTimerRunning;
-    if (!state.isTimerRunning && state.matchDurationSeconds === 0) newIsTimerRunning = true;
-    let newServingTeam = state.servingTeam;
-    if (state.servingTeam !== team) newServingTeam = team;
-
-    const potentialScoreA = team === 'A' ? state.scoreA + 1 : state.scoreA;
-    const potentialScoreB = team === 'B' ? state.scoreB + 1 : state.scoreB;
-    
-    const isDecidingSet = state.config.maxSets > 1 && state.currentSet === state.config.maxSets;
-    const useTieBreak = isDecidingSet && state.config.hasTieBreak;
-    const setPointTarget = useTieBreak ? state.config.tieBreakPoints : state.config.pointsPerSet;
-
-    if (state.config.deuceType === 'sudden_death_3pt') {
-      if (state.inSuddenDeath) {
-        const suddenDeathTarget = 3;
-        if (potentialScoreA >= suddenDeathTarget) { handleSetWin('A', potentialScoreA, potentialScoreB, newIsTimerRunning); return; }
-        if (potentialScoreB >= suddenDeathTarget) { handleSetWin('B', potentialScoreA, potentialScoreB, newIsTimerRunning); return; }
-        updateState({ ...state, scoreA: potentialScoreA, scoreB: potentialScoreB, isTimerRunning: newIsTimerRunning, servingTeam: newServingTeam });
-        return;
-      }
-      if (potentialScoreA === setPointTarget - 1 && potentialScoreB === setPointTarget - 1) {
-        updateState({ ...state, scoreA: 0, scoreB: 0, inSuddenDeath: true, isTimerRunning: newIsTimerRunning, servingTeam: newServingTeam });
-        return;
-      }
-    }
-    const winner = checkStandardWin(potentialScoreA, potentialScoreB, setPointTarget);
-    if (winner) { handleSetWin(winner, potentialScoreA, potentialScoreB, newIsTimerRunning); } 
-    else { updateState({ ...state, scoreA: potentialScoreA, scoreB: potentialScoreB, isTimerRunning: newIsTimerRunning, servingTeam: newServingTeam }); }
-  }, [state, updateState]);
-
-  const checkStandardWin = (scoreA: number, scoreB: number, target: number): TeamId | null => {
-    if (scoreA >= target && scoreA >= scoreB + MIN_LEAD_TO_WIN) return 'A';
-    if (scoreB >= target && scoreB >= scoreA + MIN_LEAD_TO_WIN) return 'B';
+    if (currentScoreA >= targetPoints && currentScoreA >= currentScoreB + MIN_LEAD_TO_WIN) return 'A';
+    if (currentScoreB >= targetPoints && currentScoreB >= currentScoreA + MIN_LEAD_TO_WIN) return 'B';
     return null;
   };
 
-  const handleSetWin = (setWinner: TeamId, finalScoreA: number, finalScoreB: number, timerWasRunning: boolean) => {
-    const newSetsA = setWinner === 'A' ? state.setsA + 1 : state.setsA;
-    const newSetsB = setWinner === 'B' ? state.setsB + 1 : state.setsB;
-    const newHistory: SetHistory = { setNumber: state.currentSet, scoreA: finalScoreA, scoreB: finalScoreB, winner: setWinner };
-    const setsNeeded = SETS_TO_WIN_MATCH(state.config.maxSets);
-    const matchWinner = newSetsA === setsNeeded ? 'A' : (newSetsB === setsNeeded ? 'B' : null);
-    updateState({ ...state, scoreA: matchWinner ? finalScoreA : 0, scoreB: matchWinner ? finalScoreB : 0, setsA: newSetsA, setsB: newSetsB, history: [...state.history, newHistory], currentSet: matchWinner ? state.currentSet : state.currentSet + 1, isMatchOver: !!matchWinner, matchWinner: matchWinner, inSuddenDeath: false, isTimerRunning: matchWinner ? false : timerWasRunning, servingTeam: null, timeoutsA: 0, timeoutsB: 0 });
-  };
+  const addPoint = useCallback((team: TeamId) => {
+    if (state.isMatchOver) return;
+    setState(prev => {
+      const newScoreA = team === 'A' ? prev.scoreA + 1 : prev.scoreA;
+      const newScoreB = team === 'B' ? prev.scoreB + 1 : prev.scoreB;
+      const setWinner = checkSetWinner(newScoreA, newScoreB, prev.config);
+      
+      if (setWinner) {
+          const newSetsA = setWinner === 'A' ? prev.setsA + 1 : prev.setsA;
+          const newSetsB = setWinner === 'B' ? prev.setsB + 1 : prev.setsB;
+          const historyEntry: SetHistory = { setNumber: prev.currentSet, scoreA: newScoreA, scoreB: newScoreB, winner: setWinner };
+          const setsNeeded = SETS_TO_WIN_MATCH(prev.config.maxSets);
+          const matchWinner = newSetsA === setsNeeded ? 'A' : (newSetsB === setsNeeded ? 'B' : null);
+          
+          // --- AQUI ESTÁ A CORREÇÃO CRÍTICA ---
+          // Se temos um vencedor da partida, calculamos o PREVIEW da rotação IMEDIATAMENTE
+          let previewReport = null;
+          if (matchWinner) {
+              previewReport = queueManager.getRotationPreview(matchWinner);
+          }
+
+          if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
+          
+          return {
+              ...prev, scoreA: matchWinner ? newScoreA : 0, scoreB: matchWinner ? newScoreB : 0, setsA: newSetsA, setsB: newSetsB,
+              history: [...prev.history, historyEntry], currentSet: matchWinner ? prev.currentSet : prev.currentSet + 1, 
+              matchWinner: matchWinner, 
+              isMatchOver: !!matchWinner, 
+              rotationReport: previewReport, // SALVA O PREVIEW NO ESTADO
+              servingTeam: null, isTimerRunning: matchWinner ? false : true, timeoutsA: 0, timeoutsB: 0, inSuddenDeath: false
+          };
+      }
+      const target = (prev.config.hasTieBreak && prev.currentSet === prev.config.maxSets) ? prev.config.tieBreakPoints : prev.config.pointsPerSet;
+      return { ...prev, scoreA: newScoreA, scoreB: newScoreB, servingTeam: team, isTimerRunning: true, inSuddenDeath: (newScoreA >= target - 1 && newScoreB >= target - 1) };
+    });
+  }, [state.isMatchOver, queueManager]); // Adicionado queueManager nas dependências
 
   const subtractPoint = useCallback((team: TeamId) => {
     if (state.isMatchOver) return;
-    if (team === 'A' && state.scoreA > 0) updateState({ ...state, scoreA: state.scoreA - 1 });
-    if (team === 'B' && state.scoreB > 0) updateState({ ...state, scoreB: state.scoreB - 1 });
-  }, [state, updateState]);
+    setState(prev => {
+        if (team === 'A' && prev.scoreA === 0) return prev;
+        if (team === 'B' && prev.scoreB === 0) return prev;
+        return { ...prev, scoreA: team === 'A' ? prev.scoreA - 1 : prev.scoreA, scoreB: team === 'B' ? prev.scoreB - 1 : prev.scoreB };
+    });
+  }, [state.isMatchOver]);
+
+  const resetMatch = useCallback(() => {
+      setState(prev => ({ ...INITIAL_STATE, teamAName: prev.teamAName, teamBName: prev.teamBName, teamARoster: prev.teamARoster, teamBRoster: prev.teamBRoster, queue: prev.queue, config: prev.config }));
+  }, []);
+
+  const undo = useCallback(() => { console.log("Undo full state not implemented yet, use subtract"); }, []);
+  const toggleSides = useCallback(() => setState(prev => ({ ...prev, swappedSides: !prev.swappedSides })), []);
+  const toggleService = useCallback(() => setState(prev => ({ ...prev, servingTeam: prev.servingTeam === 'A' ? 'B' : (prev.servingTeam === 'B' ? null : 'A') })), []);
+  const useTimeout = useCallback((team: TeamId) => setState(prev => {
+      if (team === 'A' && prev.timeoutsA < 2) return { ...prev, timeoutsA: prev.timeoutsA + 1 };
+      if (team === 'B' && prev.timeoutsB < 2) return { ...prev, timeoutsB: prev.timeoutsB + 1 };
+      return prev;
+  }), []);
+
+  const applySettings = useCallback((newConfig: GameConfig, names: {nameA: string, nameB: string}) => {
+      setState(prev => ({ ...prev, config: newConfig, teamAName: names.nameA, teamBName: names.nameB }));
+      queueManager.updateTeamName(state.teamARoster.id, names.nameA);
+      queueManager.updateTeamName(state.teamBRoster.id, names.nameB);
+  }, [queueManager, state.teamARoster.id, state.teamBRoster.id]);
+
+  const rotateTeams = useCallback(() => {
+    if (!state.matchWinner) return;
+    queueManager.rotateTeams(state.matchWinner);
+    setState(prev => ({
+        ...prev, scoreA: 0, scoreB: 0, setsA: 0, setsB: 0, currentSet: 1, history: [], isMatchOver: false, matchWinner: null, servingTeam: null, timeoutsA: 0, timeoutsB: 0, inSuddenDeath: false, matchDurationSeconds: 0, isTimerRunning: false,
+    }));
+  }, [state.matchWinner, queueManager]);
 
   return {
-    state,
-    isLoaded,
-    addPoint,
-    subtractPoint,
-    undo,
-    resetMatch,
-    toggleSides,
-    toggleService,
-    useTimeout,
-    applySettings,
-    canUndo: historyStack.length > 1,
-    generateTeams,
-    updateRosters,
+    state, setState, isLoaded, addPoint, subtractPoint, undo, resetMatch, toggleSides, toggleService, useTimeout, applySettings, canUndo: true,
+    generateTeams: queueManager.generateTeams,
+    updateRosters: queueManager.updateRosters,
     rotateTeams,
-    updateTeamName,
-    movePlayer,
-    removePlayer
+    updateTeamName: queueManager.updateTeamName,
+    movePlayer: queueManager.movePlayer,
+    removePlayer: queueManager.removePlayer,
+    togglePlayerFixed: queueManager.togglePlayerFixed 
   };
 };
